@@ -1,0 +1,8 @@
+*.aux
+*.fls
+*.fdb_latexmk
+Tokarev-course-work.log
+*.out
+*.synctex.gz
+test.py
+_minted-Tokarev-course-work/
