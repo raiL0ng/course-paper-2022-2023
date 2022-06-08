@@ -5,4 +5,5 @@ Tokarev-course-work.log
 *.out
 *.synctex.gz
 test.py
+temp.py
 _minted-Tokarev-course-work/

