@@ -4,6 +4,7 @@
 Tokarev-course-work.log
 *.out
 *.synctex.gz
+*.toc
 test.py
 temp.py
 _minted-Tokarev-course-work/

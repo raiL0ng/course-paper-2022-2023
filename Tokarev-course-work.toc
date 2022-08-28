@@ -3,13 +3,13 @@
 \contentsline {section}{\numberline {1}Определение RDP}{4}{}%
 \contentsline {subsection}{\numberline {1.1}Безопасность протокола RDP}{4}{}%
 \contentsline {section}{\numberline {2}Принцип работы протокола RDP и анализ его поведения}{5}{}%
-\contentsline {section}{\numberline {3}Обнаружение сеанса удаленного управления}{9}{}%
-\contentsline {subsection}{\numberline {3.1}Клавиатурный мониторинг}{10}{}%
-\contentsline {subsection}{\numberline {3.2}Другие варианты обнаружения RDP-сессии}{14}{}%
-\contentsline {section}{\cyrillictext \CYRZ \CYRA \CYRK \CYRL \CYRYU \CYRCH \CYRE \CYRN \CYRI \CYRE }{16}{}%
-\contentsline {section}{\cyrillictext \CYRS \CYRP \CYRI \CYRS \CYRO \CYRK \ \CYRI \CYRS \CYRP \CYRO \CYRL \CYRSFTSN \CYRZ \CYRO \CYRV \CYRA \CYRN \CYRN \CYRERY \CYRH \ \CYRI \CYRS \CYRT \CYRO \CYRCH \CYRN \CYRI \CYRK \CYRO \CYRV }{17}{}%
+\contentsline {section}{\numberline {3}Обнаружение сеанса удаленного управления с помощью программы}{10}{}%
+\contentsline {section}{\numberline {4}Демонстрация работы программы}{18}{}%
+\contentsline {subsection}{\numberline {4.1}Другие варианты обнаружения RDP-сессии}{21}{}%
+\contentsline {section}{\cyrillictext \CYRZ \CYRA \CYRK \CYRL \CYRYU \CYRCH \CYRE \CYRN \CYRI \CYRE }{23}{}%
+\contentsline {section}{\cyrillictext \CYRS \CYRP \CYRI \CYRS \CYRO \CYRK \ \CYRI \CYRS \CYRP \CYRO \CYRL \CYRSFTSN \CYRZ \CYRO \CYRV \CYRA \CYRN \CYRN \CYRERY \CYRH \ \CYRI \CYRS \CYRT \CYRO \CYRCH \CYRN \CYRI \CYRK \CYRO \CYRV }{24}{}%
 \redeflsection 
 \ttl@change@i {\@ne }{section}{3ex}{\hspace {-3ex}}{\appendixname ~\thecontentslabel \hspace {2ex}}{\hspace {2.3em}}{\titlerule *[0.98ex]{.}\contentspage }\relax 
 \ttl@change@v {section}{}{}{}\relax 
-\contentsline {section}{\numberline {\CYRA }Код keylogger-win.py}{18}{}%
+\contentsline {section}{\numberline {\CYRA }Код rdp-sniffer.py}{25}{}%
 \contentsfinish 
