@@ -59,14 +59,14 @@ def scan_port(src_ipv4, dest_ipv4, src_mac, src_port, dest_port):
     fl = False
     for key in white_list.keys():
       if key[1] == src_ipv4:
-        fl == True
+        fl = True
         break
-    for key in white_list.keys():
-      if key[1] == dest_ipv4:
-        tup = (src_ipv4, src_mac)    
-        if tup not in black_list:
-          black_list.append(tup)
-          if not fl:
+    if not fl:
+      for key in white_list.keys():
+        if key[1] == dest_ipv4:
+          tup = (src_ipv4, src_mac)    
+          if tup not in black_list:
+            black_list.append(tup)
             write_to_file((src_ipv4, src_mac, key[0], src_port, dest_port), False)
 
 
@@ -83,26 +83,20 @@ def scan_inf(r_data, src_ipv4, dest_ipv4, src_mac, dest_mac, dest_port, src_port
   global black_list
   global Packet_cnt
   data = format_data(r_data)
-  is_ok = False
+  flag = False
   for key in white_list.keys():
     if key[1] == src_ipv4:
-      is_ok = True
-  if not is_ok:
+      flag = True
+      break
+  if not flag:
     for key, value in white_list.items():
       if value[1] in data and key[1] == dest_ipv4:
         Current_object = (key[0], key[1], value[0])
         tup = (src_ipv4, src_mac)
         if tup not in black_list:
-            fl = False
-            for key in white_list.keys():
-              if key[1] == tup[0]:
-                fl = True
-                break
-            if not fl:
-              black_list.append(tup)
-              write_to_file(( src_ipv4, src_mac, Current_object[0]
-                            , src_port, dest_port ), False)
-              fl = False
+            black_list.append(tup)
+            write_to_file(( src_ipv4, src_mac, Current_object[0]
+                          , src_port, dest_port ), False)
     if Current_object:
       if Current_object[2] in data:
         fl = False
@@ -114,10 +108,10 @@ def scan_inf(r_data, src_ipv4, dest_ipv4, src_mac, dest_mac, dest_port, src_port
         Current_object = ''
       else:
         Packet_cnt += 1
-        if Packet_cnt > 300:
+        if Packet_cnt > 100:
           Packet_cnt = 0
           Current_object = ''  
-  
+
 
 # Перехват трафика и вывод информации в консоль
 def start_to_listen(interface):
