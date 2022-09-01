@@ -156,10 +156,15 @@ def start_to_listen(interface):
 
         scan_port(src_ipv4, dest_ipv4, src_mac, src_port_tcp, dest_port_tcp)
         
-        th_inf = threading.Thread(target=scan_inf, args=[ data_tcp, src_ipv4, dest_ipv4
-                                                        , src_mac, dest_mac, dest_port_tcp, src_port_tcp ])
+        th_inf = threading.Thread(target=scan_inf, args=[ data_tcp
+                                                        , src_ipv4
+                                                        , dest_ipv4
+                                                        , src_mac
+                                                        , dest_mac
+                                                        , dest_port_tcp
+                                                        , src_port_tcp ])
         th_inf.start()
-        keyboard.add_hotkey('Space', wait_key)
+      keyboard.add_hotkey('Space', wait_key)
 
 
 # Выход из программы
