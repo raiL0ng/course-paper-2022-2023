@@ -10,6 +10,7 @@ Current_object = '' # Текущий неизвестный объект
 Cur_number = 1 # Счетчик всех перехваченных пакетов
 Packet_cnt = 0 # Счетчик пакетов
 
+
 # Получение ethernet-кадра
 def get_ethernet_frame(data):
   dest_mac, src_mac, proto = struct.unpack('!6s6sH', data[:14])
@@ -44,7 +45,6 @@ def ipv4_dec(ip_bytes):
 def get_udp_segment(data):
   src_port, dest_port, size = struct.unpack('!HH2xH', data[:8])
   return src_port, dest_port, size, data[8:]
-
 
 
 # Получение TCP-cегмента данных
