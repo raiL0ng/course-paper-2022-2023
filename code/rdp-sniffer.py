@@ -99,7 +99,6 @@ def scan_inf(r_data, src_ipv4, dest_ipv4, src_mac, dest_mac, dest_port, src_port
                           , src_port, dest_port ), False)
     if Current_object:
       if Current_object[2] in data:
-        fl = False
         for key in white_list.keys():
           if key[1] == src_ipv4:
             write_to_file(( dest_ipv4, dest_mac, Current_object[0]
