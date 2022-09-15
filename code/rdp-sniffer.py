@@ -97,19 +97,19 @@ def scan_inf(r_data, src_ipv4, dest_ipv4, src_mac, dest_mac, dest_port, src_port
             black_list.append(tup)
             write_to_file(( src_ipv4, src_mac, Current_object[0]
                           , src_port, dest_port ), False)
-    if Current_object:
-      if Current_object[2] in data:
-        for key in white_list.keys():
-          if key[1] == src_ipv4:
-            write_to_file(( dest_ipv4, dest_mac, Current_object[0]
-                          , src_port, dest_port ), True)
-            break
-        Current_object = ''
-      else:
-        Packet_cnt += 1
-        if Packet_cnt > 100:
-          Packet_cnt = 0
-          Current_object = ''  
+  if Current_object:
+    if Current_object[2] in data:
+      for key in white_list.keys():
+        if key[1] == src_ipv4:
+          write_to_file(( dest_ipv4, dest_mac, Current_object[0]
+                        , src_port, dest_port ), True)
+          break
+      Current_object = ''
+    else:
+      Packet_cnt += 1
+      if Packet_cnt > 100:
+        Packet_cnt = 0
+        Current_object = ''  
 
 
 # Перехват трафика и вывод информации в консоль
