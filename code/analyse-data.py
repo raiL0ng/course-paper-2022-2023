@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import time
+from colorama import init, Back, Fore
 
+init(autoreset=True)
 
 FileName = 'data.log'
 Packet_list = []
@@ -44,10 +46,6 @@ class ExploreObject:
     self.adjcPacketList = None
 
 
-  # def set_in_out_rel(self, data):
-  #   self.in_out_rel_data = data
-
-
 def read_from_file(inf):
   a = []
   while True:
@@ -65,6 +63,7 @@ def read_from_file(inf):
   elif a[5] == 'UDP':
     Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
                                 , a[6], a[7], a[8], a[9], a[10], a[11] ))
+
 
 def get_common_data():
   IPList = []
@@ -203,15 +202,24 @@ def get_adjacent_packets(exploreIP):
 
 
 def print_adjacent_packets(adjcPacketLIst):
+  cnt = 0
   for p in adjcPacketLIst:
     t = time.asctime(time.gmtime(p.timePacket))
-    print( f'Номер пакета: {p.numPacket};', f'Время: {t};'
-         , f'Размер: {p.packetSize};', f'MAC-адрес отправителя: {p.mac_src};'
-         , f'MAC-адрес получателя: {p.mac_dest};'
-         , f'IP-адрес отправителя: {p.ip_src};', f'IP-адрес получателя: {p.ip_dest};'
-         , f'Протокол: {p.protoType};', f'Порт отправителя: {p.port_src};'
-         , f'Порт получателя: {p.port_dest};', f'Количество байт: {p.len_data};' )
-  
+    if cnt % 2 == 1:
+      print( f'Номер пакета: {p.numPacket};', f'Время: {t};'
+           , f'Размер: {p.packetSize};', f'MAC-адрес отправителя: {p.mac_src};'
+           , f'MAC-адрес получателя: {p.mac_dest};'
+           , f'IP-адрес отправителя: {p.ip_src};', f'IP-адрес получателя: {p.ip_dest};'
+           , f'Протокол: {p.protoType};', f'Порт отправителя: {p.port_src};'
+           , f'Порт получателя: {p.port_dest};', f'Количество байт: {p.len_data};' )
+    else:
+      print( Back.CYAN + Fore.BLACK + f'Номер пакета: {p.numPacket};' + f' Время: {t};' +
+             f' Размер: {p.packetSize};' + f' MAC-адрес отправителя: {p.mac_src};' +
+             f' MAC-адрес получателя: {p.mac_dest};' +
+             f' IP-адрес отправителя: {p.ip_src};' + f' IP-адрес получателя: {p.ip_dest};' +
+             f' Протокол: {p.protoType};' + f' Порт отправителя: {p.port_src};' +
+             f' Порт получателя: {p.port_dest};' + f' Количество байт: {p.len_data};' )
+    cnt += 1
 
 
 def print_IP_list(IPList):
@@ -247,29 +255,36 @@ def choose_options(k, strt):
         data = get_in_out_rel(curIP, strt)
         Object_list[k].in_out_rel_data = data
       x = [i for i in range(0, len(Object_list[k].in_out_rel_data))]
-      _, ax = plt.subplots()
-      ax.plot(x, Object_list[k].in_out_rel_data)
-      ax.set_xlabel('Время (с)', fontsize=15)
-      # ax.set_ylabel('Отношение входящего и исходящего трафиков', fontsize=15)
+      fig = plt.figure(figsize=(12, 4), constrained_layout=True)
+      f = fig.add_subplot()
+      f.grid()
+      f.set_title('Отношение объема входящего и объема исходящего трафиков', fontsize=15)
+      f.set_xlabel('Время (с)', fontsize=15)
+      plt.plot(x, Object_list[k].in_out_rel_data)
       plt.show()
     elif bl == '3':
       if Object_list[k].udp_tcp_rel_data == None:
         data = get_udp_tcp_rel(curIP, strt)
         Object_list[k].udp_tcp_rel_data = data
       x = [i for i in range(0, len(Object_list[k].udp_tcp_rel_data))]
-      _, ax = plt.subplots()
-      ax.plot(x, Object_list[k].udp_tcp_rel_data)
-      ax.set_xlabel('Время (с)', fontsize=15)
-      # ax.set_ylabel('Отношение объема входящего UDP-трафика и объема исходящего TCP-трафика', fontsize=15)
+      fig = plt.figure(figsize=(12, 4), constrained_layout=True)
+      f = fig.add_subplot()
+      f.grid()
+      f.set_title('Отношение объема входящего UDP-трафика и объема входящего TCP-трафика', fontsize=15)
+      f.set_xlabel('Время (с)', fontsize=15)
+      plt.plot(x, Object_list[k].udp_tcp_rel_data)
       plt.show()
     elif bl == '4':
       if Object_list[k].ack_flags_diff_data == None:
         data = get_ack_flags_diff(curIP, strt)
         Object_list[k].ack_flags_diff_data = data
       x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data))]
-      _, ax = plt.subplots()
-      ax.plot(x, Object_list[k].ack_flags_diff_data)
-      ax.set_xlabel('Время (с)', fontsize=15)
+      fig = plt.figure(figsize=(12, 4), constrained_layout=True)
+      f = fig.add_subplot()
+      plt.plot(x, Object_list[k].ack_flags_diff_data)
+      f.grid()
+      f.set_title('Разность числа исходящих и числа входящих ACK-флагов в единицу времени', fontsize=15)
+      f.set_xlabel('Время (с)', fontsize=15)
       plt.show()
     elif bl == '5':
       if Object_list[k].syn_flags_freq_data == None:
@@ -279,13 +294,17 @@ def choose_options(k, strt):
         data = get_psh_flags_freq(curIP, strt)
         Object_list[k].psh_flags_freq_data = data
       x = [i for i in range(0, len(Object_list[k].syn_flags_freq_data))]
-      fig = plt.figure(figsize=(7, 3), constrained_layout=True)
+      fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       gs = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
       fig_1 = fig.add_subplot(gs[0, 0])
+      fig_1.grid()
       plt.plot(x, Object_list[k].syn_flags_freq_data)
       fig_2 = fig.add_subplot(gs[0, 1])
+      fig_2.grid()
       plt.plot(x, Object_list[k].psh_flags_freq_data)
+      fig_1.set_title('Частота флагов SYN', fontsize=15)
       fig_1.set_xlabel('Время (с)', fontsize=15)
+      fig_2.set_title('Частота флагов PSH', fontsize=15)
       fig_2.set_xlabel('Время (с)', fontsize=15)
       plt.show()
     elif bl == '6':
@@ -293,9 +312,15 @@ def choose_options(k, strt):
     
 
 if __name__ == '__main__':
+  print('Введите название файла (например: data.log)')
+  FileName = input()
   while True:
     if not Packet_list:
-      f = open(FileName, 'r')
+      try:
+        f = open(FileName, 'r')
+      except:
+        print('Некорректное название файла!')
+        exit(0)
       while True:
         inf = f.readline()
         if not inf:
@@ -321,34 +346,24 @@ if __name__ == '__main__':
     print('Время последнего перехваченного пакета: ', time.asctime(fin_time))
     print('Количество пакетов: ', len(Packet_list))
     print('Общее время перехвата: ', round(fin - strt, 3))
-    print('Среднее количество пакетов секунду: ', round(avgPacketVal, 3))
+    print('Среднее количество пакетов в секунду: ', round(avgPacketVal, 3))
     print('Средний размер пакетов: ', round(avgSizePacket, 3))
     print('Завершить просмотр (нажмите \"q\" для выхода)')
 
     for k in range(0, len(IPList)):
       Object_list.append(ExploreObject(IPList[k]))
     print_IP_list(IPList)
-    print(f'Выберите цифру (0 - {len(IPList) - 1}) для просмотра IP-адреса:')
+    print(f'\nВыберите цифру (0 - {len(IPList) - 1}) для просмотра IP-адреса:')
     k = input()
     if k == 'q':
       break
     try:
       k = int(k)
     except:
-      print('Некорректный ввод!')
+      print('Некорректный ввод. Завершение программы...')
       break
     else:
       if 0 <= k < len(IPList):
         choose_options(k, strt)
       else:
         print(f'Введите число в пределах 0 - {len(IPList) - 1}')
-
-    
-    # d = get_psh_flags_freq(Object_list[0].ip, strt)
-    # x = [i for i in range(0, len(d))]
-    # # print(Object_list[0].psh_flags_freq_data)
-    # # Object_list[0].psh_flags_freq_data = d
-    # # print(Object_list[0].psh_flags_freq_data)
-    # # print(d)
-    # plt.plot(x, d)
-    # plt.show()
