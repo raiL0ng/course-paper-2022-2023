@@ -76,18 +76,22 @@ def get_common_data():
   IPList = []
   numPacketsPerSec = []
   curTime = Packet_list[0].timePacket + 1
-  # fin = Packet_list[-1].timePacket
+  fin = Packet_list[-1].timePacket + 1
   Labels_list.append(time.strftime('%H:%M:%S', time.localtime(Packet_list[0].timePacket)))
   cntPacket = 0
-  # while curTime < fin:
-
+  i = 0
+  while curTime < fin:
+    for k in range(i, len(Packet_list)):
+      if Packet_list[k].timePacket > curTime:
+        numPacketsPerSec.append(cntPacket)
+        cntPacket = 0
+        i = k
+        break
+      cntPacket += 1
+    Labels_list.append(time.strftime('%H:%M:%S', time.localtime(curTime)))
+    curTime += 1
+  numPacketsPerSec.append(cntPacket)
   for p in Packet_list:
-    if p.timePacket > curTime:
-      numPacketsPerSec.append(cntPacket)
-      Labels_list.append(time.strftime('%H:%M:%S', time.localtime(p.timePacket)))
-      cntPacket = 0
-      curTime += 1
-    cntPacket += 1
     CurIP = p.ip_src
     if CurIP not in IPList:
       IPList.append(CurIP)
@@ -99,17 +103,17 @@ def get_in_out_rel(exploreIP, strt):
   cntOutput = 0
   rel_list = [0]
   curTime = strt + 1
+  fin = Packet_list[-1] + 1
+  
   for p in Packet_list:
     if p.timePacket > curTime:
-      if cntInput == 0 and cntOutput == 0:
-        rel_list.append(0)
-        curTime += 1
-        if cntOutput != 0:
-          rel_list.append(cntInput / cntOutput)
-        else:
-          rel_list.append(0.0)
-        cntInput = 0
-        cntOutput = 0
+      curTime += 1
+      if cntOutput != 0:
+        rel_list.append(cntInput / cntOutput)
+      else:
+        rel_list.append(0.0)
+      cntInput = 0
+      cntOutput = 0
     if p.ip_src == exploreIP:
       cntOutput += 1
     if p.ip_dest == exploreIP:
@@ -302,7 +306,7 @@ def choose_options(k, strt):
       if Object_list[k].in_out_rel_data == None:
         data = get_in_out_rel(curIP, strt)
         Object_list[k].in_out_rel_data = data
-      print(Object_list[k].in_out_rel_data)
+      print(Object_list[k].in_out_rel_data, len(Object_list[k].in_out_rel_data))
       x = [i for i in range(0, len(Object_list[k].in_out_rel_data))]
       fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       f = fig.add_subplot()
@@ -395,14 +399,13 @@ if __name__ == '__main__':
       for p in Packet_list:
         avgSizePacket += p.packetSize
       avgSizePacket /= len(Packet_list)
-    print(numPacketsPerSec, len(numPacketsPerSec))
     print('Общая информация:')
     print( 'Время первого перехваченного пакета: '
          , time.strftime('%d.%m.%Y г. %H:%M:%S', strt_time) )
     print( 'Время последнего перехваченного пакета: '
          , time.strftime('%d.%m.%Y г. %H:%M:%S', fin_time) )
     print('Количество пакетов: ', len(Packet_list))
-    print('Общее время перехвата: ', round(fin - strt + 1, 3), 'сек')
+    print('Общее время перехвата: ', round(fin - strt, 3), 'сек')
     print('Среднее количество пакетов в секунду: ', round(avgNumPacket, 3))
     print('Средний размер пакетов: ', round(avgSizePacket, 3))
     print('Завершить просмотр (нажмите \"q\" для выхода)')
