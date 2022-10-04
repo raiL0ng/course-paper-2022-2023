@@ -84,11 +84,11 @@ def get_common_data():
     for k in range(i, len(Packet_list)):
       if Packet_list[k].timePacket > curTime:
         numPacketsPerSec.append(cntPacket)
+        Labels_list.append(time.strftime('%H:%M:%S', time.localtime(curTime)))
         cntPacket = 0
         i = k
         break
       cntPacket += 1
-    Labels_list.append(time.strftime('%H:%M:%S', time.localtime(curTime)))
     curTime += 1
   numPacketsPerSec.append(cntPacket)
   for p in Packet_list:
@@ -101,23 +101,26 @@ def get_common_data():
 def get_in_out_rel(exploreIP, strt):
   cntInput = 0
   cntOutput = 0
-  rel_list = [0]
+  rel_list = []
   curTime = strt + 1
-  fin = Packet_list[-1] + 1
-  
-  for p in Packet_list:
-    if p.timePacket > curTime:
-      curTime += 1
-      if cntOutput != 0:
-        rel_list.append(cntInput / cntOutput)
-      else:
-        rel_list.append(0.0)
-      cntInput = 0
-      cntOutput = 0
-    if p.ip_src == exploreIP:
-      cntOutput += 1
-    if p.ip_dest == exploreIP:
-      cntInput += 1
+  fin = Packet_list[-1].timePacket + 1
+  pos = 0
+  while curTime < fin:
+    for k in range(pos, len(Packet_list)):
+      if Packet_list[k].timePacket > curTime:
+        if cntOutput != 0:
+          rel_list.append(cntInput / cntOutput)
+        else:
+          rel_list.append(0.0)
+        cntInput = 0
+        cntOutput = 0
+        pos = k
+        break
+      if Packet_list[k].ip_src == exploreIP:
+        cntOutput += 1
+      if Packet_list[k].ip_dest == exploreIP:
+        cntInput += 1
+    curTime += 1
   if cntOutput != 0:
     rel_list.append(cntInput / cntOutput)
   else:
@@ -141,6 +144,7 @@ def get_ack_flags_diff(exploreIP, strt):
         cntOutput += 1
       if p.ip_dest == exploreIP:
         cntInput += 1
+  diff_list.append(cntOutput - cntInput)
   return diff_list
 
 
@@ -163,6 +167,10 @@ def get_udp_tcp_rel(exploreIP, strt):
         cntTCP += 1
       if p.protoType == 'UDP':
         cntUDP += 1
+  if cntTCP != 0:
+    rel_list.append(cntUDP / cntTCP)
+  else:
+    rel_list.append(0.0)
   return rel_list
 
 
@@ -185,6 +193,10 @@ def get_syn_flags_freq(exploreIP, strt):
           cntSynTCP += 1
         else:
           cntTCP += 1
+  if cntTCP != 0:
+    rel_list.append(cntSynTCP / cntTCP)
+  else:
+    rel_list.append(0.0)
   return rel_list
 
 
@@ -207,35 +219,30 @@ def get_psh_flags_freq(exploreIP, strt):
           cntPshTCP += 1
         else:
           cntTCP += 1
+  if cntTCP != 0:
+    rel_list.append(cntPshTCP / cntTCP)
+  else:
+    rel_list.append(0.0)
   return rel_list
 
 
 def get_inf_about_IP(exploreIP):
   adjcPacketList = []
   adjcIPList = []
-  curTime = Packet_list[0].timePacket + 1
-  cntPackets = 0
-  sumPPS = 0
   for p in Packet_list:
-    if p.timePacket > curTime:
-      sumPPS += cntPackets
-      cntPackets = 0
-      curTime += 1
     if p.ip_src == exploreIP:
       adjcPacketList.append(p)
       adjcIPList.append(p.ip_dest)
-      cntPackets += 1
     if p.ip_dest == exploreIP:
       adjcPacketList.append(p)
       adjcIPList.append(p.ip_src)
-      cntPackets += 1
-  return adjcPacketList, adjcIPList, sumPPS
+  return adjcPacketList, adjcIPList
 
 
 def print_adjacent_packets(adjcPacketLIst):
   cnt = 0
   for p in adjcPacketLIst:
-    t = time.asctime(time.gmtime(p.timePacket))
+    t = time.strftime('%H:%M:%S', time.localtime(p.timePacket))
     if cnt % 2 == 1:
       print( f'Номер пакета: {p.numPacket};', f'Время: {t};'
            , f'Размер: {p.packetSize};', f'MAC-адрес отправителя: {p.mac_src};'
@@ -269,7 +276,7 @@ def print_IP_list(IPList):
 def choose_options(k, strt):
   curIP = Object_list[k].ip
   if Object_list[k].adjcPacketList == None:
-    Object_list[k].adjcPacketList, Object_list[k].adjcIPList, sumPPS = get_inf_about_IP(curIP)
+    Object_list[k].adjcPacketList, Object_list[k].adjcIPList = get_inf_about_IP(curIP)
   if Object_list[k].strt_time == None:
     Object_list[k].strt_time = time.localtime(Object_list[k].adjcPacketList[0].timePacket)
   if Object_list[k].fin_time == None:
@@ -277,7 +284,8 @@ def choose_options(k, strt):
   if Object_list[k].amnt_packet == None:
     Object_list[k].amnt_packet = len(Object_list[k].adjcPacketList)
   if Object_list[k].avg_packet_num == None:
-    Object_list[k].avg_packet_num = round(sumPPS / Object_list[k].amnt_packet, 3)
+    tmp = Object_list[k].adjcPacketList[-1].timePacket - Object_list[k].adjcPacketList[0].timePacket
+    Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
   if Object_list[k].avg_packet_size == None:
     avgSize = 0
     for p in Object_list[k].adjcPacketList:
@@ -311,8 +319,8 @@ def choose_options(k, strt):
       fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
-      f.set_title('Отношение объема входящего и объема исходящего трафиков', fontsize=15)
-      f.set_xlabel('Время', fontsize=15)
+      f.set_title('Отношение объема входящего к объему исходящего трафиков', fontsize=15)
+      f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.plot(x, Object_list[k].in_out_rel_data)
       print(x, len(x), Labels_list, len(Labels_list))
       plt.xticks(x, Labels_list, rotation=30)
@@ -321,12 +329,12 @@ def choose_options(k, strt):
       if Object_list[k].udp_tcp_rel_data == None:
         data = get_udp_tcp_rel(curIP, strt)
         Object_list[k].udp_tcp_rel_data = data
-      x = [i for i in range(0, len(Object_list[k].udp_tcp_rel_data) + 1)]
+      x = [i for i in range(0, len(Object_list[k].udp_tcp_rel_data))]
       fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
-      f.set_title('Отношение объема входящего UDP-трафика и объема входящего TCP-трафика', fontsize=15)
-      f.set_xlabel('Время', fontsize=15)
+      f.set_title('Отношение объема входящего UDP-трафика к объему входящего TCP-трафика', fontsize=15)
+      f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.plot(x, Object_list[k].udp_tcp_rel_data)
       plt.xticks(x, Labels_list, rotation=30)
       plt.show()
@@ -334,13 +342,13 @@ def choose_options(k, strt):
       if Object_list[k].ack_flags_diff_data == None:
         data = get_ack_flags_diff(curIP, strt)
         Object_list[k].ack_flags_diff_data = data
-      x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data) + 1)]
+      x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data))]
       fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       f = fig.add_subplot()
       plt.plot(x, Object_list[k].ack_flags_diff_data)
       f.grid()
-      f.set_title('Разность числа исходящих и числа входящих ACK-флагов в единицу времени', fontsize=15)
-      f.set_xlabel('Время', fontsize=15)
+      f.set_title('Разность числа исходящих и числа входящих ACK-флагов', fontsize=15)
+      f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.xticks(x, Labels_list, rotation=30)
       plt.show()
     elif bl == '5':
@@ -350,7 +358,7 @@ def choose_options(k, strt):
       if Object_list[k].psh_flags_freq_data == None:
         data = get_psh_flags_freq(curIP, strt)
         Object_list[k].psh_flags_freq_data = data
-      x = [i for i in range(0, len(Object_list[k].syn_flags_freq_data) + 1)]
+      x = [i for i in range(0, len(Object_list[k].syn_flags_freq_data))]
       fig = plt.figure(figsize=(12, 4), constrained_layout=True)
       gs = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
       fig_1 = fig.add_subplot(gs[0, 0])
@@ -362,9 +370,9 @@ def choose_options(k, strt):
       plt.plot(x, Object_list[k].psh_flags_freq_data, 'g')
       plt.xticks(x, Labels_list, rotation=30)
       fig_1.set_title('Частота флагов SYN', fontsize=15)
-      fig_1.set_xlabel('Время', fontsize=15)
+      f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       fig_2.set_title('Частота флагов PSH', fontsize=15)
-      fig_2.set_xlabel('Время', fontsize=15)
+      f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.show()
     elif bl == '6':
       break
