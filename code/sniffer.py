@@ -108,6 +108,7 @@ def start_to_listen(s_listen):
         write_to_file(arr_data)
       if keyboard.is_pressed('space'):
         s_listen.close()
+        print('Завершение программы...')
         break
 
 
