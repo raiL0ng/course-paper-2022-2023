@@ -10,7 +10,7 @@ FileName = ''
 Packet_list = []
 Object_list = []
 Labels_list = []
-
+x_axisLabels = []
 # Класс, содержащий информацию о каком-либо пакете
 class PacketInf:
 
@@ -309,15 +309,29 @@ def print_IP_list(IPList):
   for el in IPList:
     if cnt > 3:
       cnt = 0
-      print ('[' + str(num), '---', el, ']')
+      print ('[' + str(num), '---', el, end=']\n')
     else:
       print ('[' + str(num), '---', el, end='] ')
     cnt += 1
     num += 1
 
 
+# Получение меток и "шага" для оси абсцисс
+def get_x_labels(total_time):
+  step = 0
+  if total_time > 500:
+    step = 8
+  elif total_time > 100:
+    step = 5
+  elif total_time > 50:
+    step = 2
+  for i in range(0, len(Labels_list), step):
+    x_axisLabels.append(Labels_list[i])
+  return step
+
+
 # Выбор опций для выбранного IP-адреса
-def choose_options(k, strt, fin):
+def choose_options(k, strt, fin, step):
   curIP = Object_list[k].ip
   if Object_list[k].adjcPacketList == None:
     Object_list[k].adjcPacketList, Object_list[k].adjcIPList = get_inf_about_IP(curIP)
@@ -359,39 +373,42 @@ def choose_options(k, strt, fin):
         data = get_in_out_rel(curIP, strt, fin)
         Object_list[k].in_out_rel_data = data
       x = [i for i in range(0, len(Object_list[k].in_out_rel_data))]
+      x_labels = [i for i in range(0, len(x), step)]
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
       f.set_title('Отношение объема входящего к объему исходящего трафиков', fontsize=15)
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.plot(x, Object_list[k].in_out_rel_data)
-      plt.xticks(x, Labels_list, rotation=30)
+      plt.xticks(x_labels, x_axisLabels, rotation=30)
       plt.show()
     elif bl == '3':
       if Object_list[k].udp_tcp_rel_data == None:
         data = get_udp_tcp_rel(curIP, strt, fin)
         Object_list[k].udp_tcp_rel_data = data
       x = [i for i in range(0, len(Object_list[k].udp_tcp_rel_data))]
+      x_labels = [i for i in range(0, len(x), step)]
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
       f.set_title('Отношение объема входящего UDP-трафика к объему входящего TCP-трафика', fontsize=15)
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.plot(x, Object_list[k].udp_tcp_rel_data)
-      plt.xticks(x, Labels_list, rotation=30)
+      plt.xticks(x_labels, x_axisLabels, rotation=30)
       plt.show()
     elif bl == '4':
       if Object_list[k].ack_flags_diff_data == None:
         data = get_ack_flags_diff(curIP, strt, fin)
         Object_list[k].ack_flags_diff_data = data
       x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data))]
+      x_labels = [i for i in range(0, len(x), step)]
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       plt.plot(x, Object_list[k].ack_flags_diff_data)
       f.grid()
       f.set_title('Разность числа исходящих и числа входящих ACK-флагов', fontsize=15)
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      plt.xticks(x, Labels_list, rotation=30)
+      plt.xticks(x_labels, x_axisLabels, rotation=30)
       plt.show()
     elif bl == '5':
       if Object_list[k].syn_flags_freq_data == None:
@@ -401,16 +418,17 @@ def choose_options(k, strt, fin):
         data = get_psh_flags_freq(curIP, strt, fin)
         Object_list[k].psh_flags_freq_data = data
       x = [i for i in range(0, len(Object_list[k].syn_flags_freq_data))]
+      x_labels = [i for i in range(0, len(x), step)]
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
-      gs = gridspec.GridSpec(ncols=2, nrows=1, figure=fig)
+      gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
       fig_1 = fig.add_subplot(gs[0, 0])
       fig_1.grid()
       plt.plot(x, Object_list[k].syn_flags_freq_data, 'b')
-      plt.xticks(x, Labels_list, rotation=30)
-      fig_2 = fig.add_subplot(gs[0, 1])
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_2 = fig.add_subplot(gs[1, 0])
       fig_2.grid()
       plt.plot(x, Object_list[k].psh_flags_freq_data, 'g')
-      plt.xticks(x, Labels_list, rotation=30)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_1.set_title('Частота флагов SYN', fontsize=15)
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
       fig_2.set_title('Частота флагов PSH', fontsize=15)
@@ -419,7 +437,7 @@ def choose_options(k, strt, fin):
     elif bl == '6':
       break
     
-
+  
 if __name__ == '__main__':
   print('Введите название файла (например: data.log)')
   FileName = input()
@@ -449,6 +467,8 @@ if __name__ == '__main__':
       for p in Packet_list:
         avgSizePacket += p.packetSize
       avgSizePacket /= len(Packet_list)
+      step = get_x_labels(int(fin - strt))
+
     print('Общая информация:')
     print( 'Время первого перехваченного пакета: '
          , time.strftime('%d.%m.%Y г. %H:%M:%S', strt_time) )
@@ -473,6 +493,6 @@ if __name__ == '__main__':
       break
     else:
       if 0 <= k < len(IPList):
-        choose_options(k, strt, fin)
+        choose_options(k, strt, fin, step)
       else:
         print(f'Введите число в пределах 0 - {len(IPList) - 1}')
