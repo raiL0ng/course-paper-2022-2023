@@ -88,7 +88,8 @@ def start_to_listen(s_listen):
       # Если это TCP-протокол  
       if proto == 6:
         arr_data[5] = 'TCP'
-        arr_data[8], arr_data[9], arr_data[10], arr_data[11], flags, data_tcp = get_tcp_segment(data_ipv4)
+        arr_data[8], arr_data[9], arr_data[10], \
+        arr_data[11], flags, data_tcp = get_tcp_segment(data_ipv4)
         fl_urg = str((flags & 32) >> 5)
         fl_ack = str((flags & 16) >> 4)
         fl_psh = str((flags & 8) >> 3)

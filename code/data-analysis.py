@@ -4,13 +4,12 @@ import time
 from colorama import init, Back, Fore
 
 init(autoreset=True)
-
-
 FileName = ''
 Packet_list = []
 Object_list = []
 Labels_list = []
 x_axisLabels = []
+
 # Класс, содержащий информацию о каком-либо пакете
 class PacketInf:
 
@@ -342,7 +341,8 @@ def choose_options(k, strt, fin, step):
   if Object_list[k].amnt_packet == None:
     Object_list[k].amnt_packet = len(Object_list[k].adjcPacketList)
   if Object_list[k].avg_packet_num == None:
-    tmp = Object_list[k].adjcPacketList[-1].timePacket - Object_list[k].adjcPacketList[0].timePacket
+    tmp = Object_list[k].adjcPacketList[-1].timePacket - \
+          Object_list[k].adjcPacketList[0].timePacket
     Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
   if Object_list[k].avg_packet_size == None:
     avgSize = 0
@@ -391,7 +391,8 @@ def choose_options(k, strt, fin, step):
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
-      f.set_title('Отношение объема входящего UDP-трафика к объему входящего TCP-трафика', fontsize=15)
+      f.set_title( 'Отношение объема входящего UDP-трафика к объему входящего TCP-трафика'
+                 , fontsize=15 )
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       plt.plot(x, Object_list[k].udp_tcp_rel_data)
       plt.xticks(x_labels, x_axisLabels, rotation=30)

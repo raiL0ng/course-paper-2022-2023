@@ -284,60 +284,10 @@
   есть виртуальный интерфейс (<<lo>>), который ваш компьютер использует для связи с самим собой, также существуют интерфейсы относящиеся
   к проводному соединению (<<enp0s3>>) и беспроводному (<<wlp2s0>>). В данном случае все устройства будут подключены к сети через Ethernet.
   
-  После выбора сетевого интерфейса сниффер начнет перехватывать трафик. В этот момент информация о перехваченных пакетах будет отображаться
+  После выбора сетевого интерфейса сниффер начнет перехватывать трафик, как показано. В этот момент информация о перехваченных пакетах будет отображаться
   в консоли, а также будет записываться необходимая информация каждого пакета для анализа в файл data.log.
   
-    Функция get\_white\_list() формирует пары: имя и IP-адрес компьютера. К каждой такой паре сопоставляется пара записи имени и IP-адреса устройства в
-    шестнадцатеричной системе счисления. Этот список нужен для анализа данных, хранящихся в TCP-сегменте.
-
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Получение списка верифицированных устройств
-      def get_white_list():
-        f = open('white-list.log', 'r')
-        while True:
-          line = f.readline().replace('\n', '')
-          if '#' in line:
-            continue
-          if not line:
-            break
-          pos = line.find('::')
-          serv_name = line[:pos]
-          serv_ip = line[pos + 2:]
-          white_list[(serv_name, serv_ip)] = (convert_string(serv_name), convert_string(serv_ip))
-
-      # Форматирование строки в hex-код
-      def convert_string(string):
-        s = ''
-        for el in bytearray(string.encode('utf-8')):
-          s += '\\' + str(hex(el))[1:]
-        return s
-    \end{minted}
-
-    Функция write\_to\_file() выполняет роль записи в файл <<information.log>> сообщений в зависимости от случая подключения по протоколу RDP. 
-    При демонстрации работы программы будет видно, какая информация в нем находится.
-    
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Запись в файл
-      def write_to_file(tup, bl):
-        try:
-          time = str(datetime.datetime.now()).split('.')[0]
-          with open('information.log', 'a+') as f:
-            if bl:
-              f.write('Было совершено подключение: ' + time)
-              f.write( '\nIP адрес неизвестного клиента: ' + str(tup[0]) + 
-                       ' MAC-адрес: ' + tup[1] )
-              f.write( '\nПодключение к ПК ' + tup[2] + ' от порта ' + str(tup[3]) + 
-                       ' к ' + str(tup[4]) + '\n' )
-            else:
-              f.write('Время попытки подключения: ' + time)
-              f.write( '\nIP адрес неизвестного клиента: ' + str(tup[0]) + 
-                       ' MAC-адрес: ' + tup[1] )
-              f.write( '\nПодключение осуществлялось к ПК ' + tup[2] + ' от порта ' + 
-                       str(tup[3]) + ' к ' + str(tup[4]) + '\n' )
-            f.close()
-        except:
-          pass
-    \end{minted}
+  \subsection{Описание функций программы}
 
     Для анализа трафика в сети был создан сокет --- программный интерфейс для обеспечения обмена данными между процессами. В силу заданных параметров он
     получал пакеты, представленные в виде некоторой последовательности чисел, записанных в шестнадцатеричной системе счисления.
@@ -806,10 +756,10 @@
 
   \appendix
 
-    \section{Код rdp-sniffer.py}
+    \section{Код sniffer.py}
     \inputminted[fontsize=\footnotesize]{Python}{code/sniffer.py}
 
 
-    \section{Код analyse_data.py}
+    \section{Код data-analysis.py}
     \inputminted[fontsize=\footnotesize]{Python}{code/data-analysis.py}
 \end{document}
