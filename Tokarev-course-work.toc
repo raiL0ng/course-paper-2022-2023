@@ -7,11 +7,11 @@
 \contentsline {subsection}{\numberline {3.1}Описание функций программы <<sniffer.py>>}{9}{}%
 \contentsline {subsection}{\numberline {3.2}Описание функций программы <<data-analysis.py>>}{13}{}%
 \contentsline {section}{\numberline {4}Демонстрация работы программ}{17}{}%
-\contentsline {section}{\cyrillictext \CYRZ \CYRA \CYRK \CYRL \CYRYU \CYRCH \CYRE \CYRN \CYRI \CYRE }{18}{}%
-\contentsline {section}{\cyrillictext \CYRS \CYRP \CYRI \CYRS \CYRO \CYRK \ \CYRI \CYRS \CYRP \CYRO \CYRL \CYRSFTSN \CYRZ \CYRO \CYRV \CYRA \CYRN \CYRN \CYRERY \CYRH \ \CYRI \CYRS \CYRT \CYRO \CYRCH \CYRN \CYRI \CYRK \CYRO \CYRV }{19}{}%
+\contentsline {section}{\cyrillictext \CYRZ \CYRA \CYRK \CYRL \CYRYU \CYRCH \CYRE \CYRN \CYRI \CYRE }{23}{}%
+\contentsline {section}{\cyrillictext \CYRS \CYRP \CYRI \CYRS \CYRO \CYRK \ \CYRI \CYRS \CYRP \CYRO \CYRL \CYRSFTSN \CYRZ \CYRO \CYRV \CYRA \CYRN \CYRN \CYRERY \CYRH \ \CYRI \CYRS \CYRT \CYRO \CYRCH \CYRN \CYRI \CYRK \CYRO \CYRV }{24}{}%
 \redeflsection 
 \ttl@change@i {\@ne }{section}{3ex}{\hspace {-3ex}}{\appendixname ~\thecontentslabel \hspace {2ex}}{\hspace {2.3em}}{\titlerule *[0.98ex]{.}\contentspage }\relax 
 \ttl@change@v {section}{}{}{}\relax 
-\contentsline {section}{\numberline {\CYRA }Код sniffer.py}{21}{}%
-\contentsline {section}{\numberline {\CYRB }Код data-analysis.py}{25}{}%
+\contentsline {section}{\numberline {\CYRA }Код sniffer.py}{26}{}%
+\contentsline {section}{\numberline {\CYRB }Код data-analysis.py}{30}{}%
 \contentsfinish 
