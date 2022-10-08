@@ -67,14 +67,17 @@ def read_from_file(inf):
     else:
       a.append(inf[beg + 1: end])
     inf = inf[end + 1:]
-  if a[5] == 'TCP':
-    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                , a[6], a[7], a[8], a[9], a[15], a[16]
-                                , a[10], a[11], a[12], a[13], a[14] ))
-  elif a[5] == 'UDP':
-    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                , a[6], a[7], a[8], a[9], a[10], a[11] ))
-
+  try:
+    if a[5] == 'TCP':
+      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                  , a[6], a[7], a[8], a[9], a[15], a[16]
+                                  , a[10], a[11], a[12], a[13], a[14] ))
+    elif a[5] == 'UDP':
+      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                  , a[6], a[7], a[8], a[9], a[10], a[11] ))
+  except:
+    print('Ошибка при считывании файла...')
+    exit(0)
 
 # Получение общей информации о текущей
 # попытке перехвата трафика
