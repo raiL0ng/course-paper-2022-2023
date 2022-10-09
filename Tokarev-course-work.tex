@@ -270,8 +270,8 @@
   \end{enumerate}
   
   После того, как всё настроено, сессия RDP готова к работе. На ПК клиента от сервера поступает графическое изображение
-  (результат операций), которое происходит в результате отправки команд с клавиатуры или мыши. Осталось только понять, как обнаружить передачу информации
-  характерную при подключении к удаленному рабочему столу.
+  (результат операций), которое происходит в результате отправки команд с клавиатуры или мыши. Осталось только понять, как обнаружить передачу информации,
+  характерную для подключения к удаленному рабочему столу.
 
   \section{Обнаружение сеанса удаленного управления с помощью программы}
   
@@ -298,9 +298,9 @@
     Для анализа трафика в сети был создан сокет --- программный интерфейс для обеспечения обмена данными между процессами. В силу заданных параметров он
     получал пакеты, представленные в виде некоторой последовательности чисел, записанных в шестнадцатеричной системе счисления.
     
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-    \end{minted}
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+    % \end{minted}
     
     Чтобы раскодировать данную последовательность чисел, необходимо обратиться к структуре пакета. Для начала нужно рассмотреть кадр Ethernet, представленный
     на рисунке \ref{eth-frame}.
@@ -316,20 +316,20 @@
     сетевого уровня. К примеру 0x0800 -- Ipv4, 0x86DD -- IPv6 и т.д. С помощью функций \textit{get\_ethernet\_frame} и \textit{get\_mac\_addr} производится получение всех необходимых
     данных заголовка Ethernet.
     
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Получение ethernet-кадра
-      def get_ethernet_frame(data):
-        dest_mac, src_mac, proto = struct.unpack('!6s6sH', data[:14])
-        return get_mac_addr(dest_mac), get_mac_addr(src_mac), socket.htons(proto)
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   # Получение ethernet-кадра
+    %   def get_ethernet_frame(data):
+    %     dest_mac, src_mac, proto = struct.unpack('!6s6sH', data[:14])
+    %     return get_mac_addr(dest_mac), get_mac_addr(src_mac), socket.htons(proto)
       
       
-      # Получение MAC-адреса
-        def get_mac_addr(mac_bytes):
-          mac_str = ''
-          for el in mac_bytes:
-            mac_str += format(el, '02x').upper() + ':'
-          return mac_str[:len(mac_str) - 1]
-      \end{minted}
+    %   # Получение MAC-адреса
+    %     def get_mac_addr(mac_bytes):
+    %       mac_str = ''
+    %       for el in mac_bytes:
+    %         mac_str += format(el, '02x').upper() + ':'
+    %       return mac_str[:len(mac_str) - 1]
+    %   \end{minted}
 
     После получения информации об Ethernet кадре идет раскодирование интернет-протокола. В данной работе будут рассматриваться пакеты протокола IPv4, 
     так как для анализа данных этого вполне достаточно. Поэтому необходимо рассмотреть IPv4-заголовок, который показан на рисунке \ref{ipv4-header}.
@@ -346,23 +346,23 @@
     длина заголовка, можно правильно раскодировать оставшуюся последовательность байт. С помощью функций \textit{get\_ipv4\_data} и \textit{ipv4\_dec}
     будут получена информация о времени жизни текущего пакета, о номере транспортного протокола, об IP-адресах отправителя и получателя.
   
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Получение IPv4-заголовка
-      def get_ipv4_data(data):
-        version_header_length = data[0]
-        header_length = (version_header_length & 15) * 4
-        ttl, proto, src, dest = struct.unpack('!8xBB2x4s4s', data[:20])
-        return str(ttl), proto, ipv4_dec(src), ipv4_dec(dest), data[header_length:]
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   # Получение IPv4-заголовка
+    %   def get_ipv4_data(data):
+    %     version_header_length = data[0]
+    %     header_length = (version_header_length & 15) * 4
+    %     ttl, proto, src, dest = struct.unpack('!8xBB2x4s4s', data[:20])
+    %     return str(ttl), proto, ipv4_dec(src), ipv4_dec(dest), data[header_length:]
       
       
-      # Получение IP-адреса формата X.X.X.X
-      def ipv4_dec(ip_bytes):
-        ip_str = ''
-        for el in ip_bytes:
-          ip_str += str(el) + '.'
-        return ip_str[:-1]
+    %   # Получение IP-адреса формата X.X.X.X
+    %   def ipv4_dec(ip_bytes):
+    %     ip_str = ''
+    %     for el in ip_bytes:
+    %       ip_str += str(el) + '.'
+    %     return ip_str[:-1]
       
-    \end{minted}
+    % \end{minted}
 
     После того, как был получен номер транспортного протокола, можно раскодировать их данные. Как уже упоминалось ранее,
     в качестве транспортных протоколов будут рассматриваться TCP и UDP протоколы. На рисунке \ref{tcp-header} изображена структура tcp-заголовка.
@@ -378,89 +378,89 @@
     теперь программе известны порт получателя, порт отправителя, порядковый номер, номер подтверждения, флаги и данные, которые
     содержат в себе TCP-заголовок.
 
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Получение TCP-cегмента данных
-      def get_tcp_segment(data):
-        src_port, dest_port, sequence, ack, some_block = struct.unpack('!HHLLH', data[:14])
-        return str(src_port), str(dest_port), str(sequence), str(ack), \
-               some_block, data[(some_block >> 12) * 4:]
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   # Получение TCP-cегмента данных
+    %   def get_tcp_segment(data):
+    %     src_port, dest_port, sequence, ack, some_block = struct.unpack('!HHLLH', data[:14])
+    %     return str(src_port), str(dest_port), str(sequence), str(ack), \
+    %            some_block, data[(some_block >> 12) * 4:]
     
-    \end{minted}
+    % \end{minted}
 
    Аналогично получается раскодирование данных UDP-заголовка с помощью функции \textit{get\_udp\_segment}.
 
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Получение UDP-сегмента данных
-      def get_udp_segment(data):
-        src_port, dest_port, size = struct.unpack('!HH2xH', data[:8])
-        return str(src_port), str(dest_port), str(size), data[8:]
-    \end{minted}      
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   # Получение UDP-сегмента данных
+    %   def get_udp_segment(data):
+    %     src_port, dest_port, size = struct.unpack('!HH2xH', data[:8])
+    %     return str(src_port), str(dest_port), str(size), data[8:]
+    % \end{minted}      
 
     Вся необходимая информация о пакетах для дальнейшего анализа записывается в файл data.log с помощью функции \textit{write\_to\_file}.
     
-    \begin{minted}[fontsize=\footnotesize]{Python}
-      # Запись в файл
-      def write_to_file(a):
-        try:
-          with open('data.log', 'a') as f:
-            if a[5] == 'TCP':
-              f.write( 'No:' + a[0] + ';' + 'Time:' + a[1] + ';' +
-                       'Pac-size:' + a[2] + ';' + 'MAC-src:' + a[3] + ';' + 
-                       'MAC-dest:' + a[4] + ';' + 'Type:' + a[5] + ';' +
-                       'IP-src:' + a[6] + ';' + 'IP-dest:' + a[7] + ';' +
-                       'Port-src:' + a[8] + ';' + 'Port-dest:' + a[9] + ';' +
-                       'Seq:' + a[10] + ';' + 'Ack:' + a[11] + ';' +
-                       'Fl-ack:' + a[12] + ';' + 'Fl-psh:' + a[13] + ';' +
-                       'Fl-syn:' + a[14] + ';' + 'Len-data:' + a[15] + ';' + 
-                       'Data:' + a[16] + ';!\n') 
-            else:
-              f.write( 'No:' + a[0] + ';' + 'Time:' + a[1] + ';' +
-                       'Pac-size:' + a[2] + ';' + 'MAC-src:' + a[3] + ';' + 
-                       'MAC-dest:' + a[4] + ';' + 'Type:' + a[5] + ';' +
-                       'IP-src:' + a[6] + ';' + 'IP-dest:' + a[7] + ';' +
-                       'Port-src:' + a[8] + ';' + 'Port-dest:' + a[9] + ';' +
-                       'Len-data:' + a[10] + ';' + 'Data:' + a[11] + ';!\n')
-            f.close()
-        except:
-          print('Ошибка записи в файл...')
-          pass
-    \end{minted}
+    % \begin{minted}[fontsize=\footnotesize]{Python}
+    %   # Запись в файл
+    %   def write_to_file(a):
+    %     try:
+    %       with open('data.log', 'a') as f:
+    %         if a[5] == 'TCP':
+    %           f.write( 'No:' + a[0] + ';' + 'Time:' + a[1] + ';' +
+    %                    'Pac-size:' + a[2] + ';' + 'MAC-src:' + a[3] + ';' + 
+    %                    'MAC-dest:' + a[4] + ';' + 'Type:' + a[5] + ';' +
+    %                    'IP-src:' + a[6] + ';' + 'IP-dest:' + a[7] + ';' +
+    %                    'Port-src:' + a[8] + ';' + 'Port-dest:' + a[9] + ';' +
+    %                    'Seq:' + a[10] + ';' + 'Ack:' + a[11] + ';' +
+    %                    'Fl-ack:' + a[12] + ';' + 'Fl-psh:' + a[13] + ';' +
+    %                    'Fl-syn:' + a[14] + ';' + 'Len-data:' + a[15] + ';' + 
+    %                    'Data:' + a[16] + ';!\n') 
+    %         else:
+    %           f.write( 'No:' + a[0] + ';' + 'Time:' + a[1] + ';' +
+    %                    'Pac-size:' + a[2] + ';' + 'MAC-src:' + a[3] + ';' + 
+    %                    'MAC-dest:' + a[4] + ';' + 'Type:' + a[5] + ';' +
+    %                    'IP-src:' + a[6] + ';' + 'IP-dest:' + a[7] + ';' +
+    %                    'Port-src:' + a[8] + ';' + 'Port-dest:' + a[9] + ';' +
+    %                    'Len-data:' + a[10] + ';' + 'Data:' + a[11] + ';!\n')
+    %         f.close()
+    %     except:
+    %       print('Ошибка записи в файл...')
+    %       pass
+    % \end{minted}
 
 
     Практически все выше перечисленные функции вызываются в \\* \textit{start\_to\_listen}, где осуществляется сбор информации
-    о получаемых пакетах и вывод ее в консоль. Из-за достаточно большого объема строк кода данная функция приведена в приложении А, где
-    показан непосредственно сам код программы <<sniffer.py>> 
+    о получаемых пакетах и вывод ее в консоль. Стоит отметить, что все выше описанные функции приведены в приложении А, где
+    показан непосредственно сам код программы <<sniffer.py>>. Также код программы <<data-analysis.py>> представлен в приложении Б.
 
   \subsection{Описание функций программы <<data-analysis.py>>}
 
   При запуске программа попросит пользователя ввести название файла. Далее производится считывание файла с помощью функции \textit{read\_from\_file},
   где в это время сохраняется информация о каждом пакете, перехваченном во время работы программы <<sniffer.py>>.
 
-  \begin{minted}[fontsize=\footnotesize]{Python}
-    # Считывание с файла и заполнение массива
-    # Packet_list объектами класса PacketInf
-    def read_from_file(inf):
-      a = []
-      while True:
-        beg = inf.find(':')
-        end = inf.find(';')
-        if beg == -1 and end == -1:
-          break
-        else:
-          a.append(inf[beg + 1: end])
-        inf = inf[end + 1:]
-      try:
-        if a[5] == 'TCP':
-          Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                      , a[6], a[7], a[8], a[9], a[15], a[16]
-                                      , a[10], a[11], a[12], a[13], a[14] ))
-        elif a[5] == 'UDP':
-          Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                      , a[6], a[7], a[8], a[9], a[10], a[11] ))
-      except:
-        print('Ошибка при считывании файла...')
-        exit(0)
-  \end{minted}
+  % \begin{minted}[fontsize=\footnotesize]{Python}
+  %   # Считывание с файла и заполнение массива
+  %   # Packet_list объектами класса PacketInf
+  %   def read_from_file(inf):
+  %     a = []
+  %     while True:
+  %       beg = inf.find(':')
+  %       end = inf.find(';')
+  %       if beg == -1 and end == -1:
+  %         break
+  %       else:
+  %         a.append(inf[beg + 1: end])
+  %       inf = inf[end + 1:]
+  %     try:
+  %       if a[5] == 'TCP':
+  %         Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+  %                                     , a[6], a[7], a[8], a[9], a[15], a[16]
+  %                                     , a[10], a[11], a[12], a[13], a[14] ))
+  %       elif a[5] == 'UDP':
+  %         Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+  %                                     , a[6], a[7], a[8], a[9], a[10], a[11] ))
+  %     except:
+  %       print('Ошибка при считывании файла...')
+  %       exit(0)
+  % \end{minted}
 
   После считывания собирается некоторая общая информация о перехваченном трафике. Под общей информацией подразумевается: время начала и завершения
   перехвата трафика, количество пакетов, среднее количество пакетов в секунду, средний размер пакетов. Вместе с этим в консоль выводится список 
@@ -528,8 +528,6 @@
 
   После описания всех опций данной программы остается только показать, как это будет выглядеть на практике.
 
-  % Стоит отметить, что графики строятся по формулам, которым также можно применить в анализе различных интернет-атак. В данной работе главной задачей
-  % является обнаружение подключения к удаленному рабочему столу
   \section{Демонстрация работы программ}
 
   Для тестирования данных программ было запущено три виртуальных машины. Две из них (ПК-1 и ПК-2) имеют операционную систему Windows 10 Professional версии 21H2.
@@ -549,8 +547,10 @@
 
   \begin{enumerate}
     \item В 12:03 на ПК2 была запущена программа <<Подключение к удаленному рабочему столу>>.
-    \item Примерно через 15 секунд было совершено подключение к ПК1 по протоколу RDP.
-    \item 
+    \item Примерно через 15 секунд было совершено подключение ПК2 к ПК1 по протоколу RDP.
+    \item Начиная с 12:03:50 производилось движение мышкой по рабочему столу, открытие текстовых файлов, лежащих на рабочем 
+    столе ПК1.
+    \item В 12:04:51 было завершено подключение к удаленному рабочему столу ПК1.
   \end{enumerate}
   
   После завершения программы <<sniffer.py>> был получен файл data.log, в котором хранится вся необходимая информация о каждом перехваченном пакете.
@@ -577,29 +577,29 @@
     \label{chmod}
   \end{figure}
 
-  При выборе второй опции будет построен график, изображенный на рисунке \ref{serv1}.
+  При выборе второй опции будет построен график, изображенный на рисунке \ref{clnt1}.
 
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{photo/serv-1.png}
+    \includegraphics[width=0.9\textwidth]{photo/clnt1.png}
     \caption{График отношения входящего и исходящего трафиков относительно 169.254.245.172}
-    \label{serv1}
+    \label{clnt1}
   \end{figure}
 
-  Из рисунка \ref{serv1} видно, что значение переменной $V_{dest}$ начинает возрастать с 12:03:18, а на 12:03:20 эта величина достигает
+  Из рисунка \ref{clnt1} видно, что значение переменной $V_{dest}$ начинает возрастать с 12:03:18, а на 12:03:20 эта величина достигает
   своего максимального значения.
 
   Теперь для сравнения на следующем рисунке будет показан график отношения входящего и исходящего трафиков, но уже относительно IP-адреса 169.254.99.90.
 
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{photo/clnt-1.png}
+    \includegraphics[width=0.9\textwidth]{photo/serv1.png}
     \caption{График отношения входящего и исходящего трафиков относительно 169.254.99.90}
-    \label{clnt1}
+    \label{serv1}
   \end{figure}
 
   Если посмотреть на следующий рисунок, то можно увидеть в данном трафике, что первый пакет был передан по порту 3389 в 12:03:02. Это также видно из
-  графиков, показанных на рисунках \ref{serv1} и \ref{clnt1}. Тогда начиная с 12:03:18 произошла установка RDP-сессии.
+  графиков, показанных на рисунках \ref{clnt1} и \ref{serv1}. Тогда начиная с 12:03:18 произошла установка RDP-сессии.
   
   \begin{figure}[H]
     \centering
@@ -608,56 +608,84 @@
     \label{traf1}
   \end{figure}
   
-  Исходя из рисунков \ref{serv2} и \ref{clnt2}, можно сделать вывод, что в промежутке 12:03:18 -- 12:03:23 передается большой объем UDP-пакетов и 
+  Исходя из рисунков \ref{clnt2} и \ref{serv2}, можно сделать вывод, что в промежутке 12:03:18 -- 12:03:25 передается большой объем UDP-пакетов и 
   скорее всего это произошло в момент подтверждения сертификата клиента сервером.
 
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{photo/serv-2.png}
+    \includegraphics[width=0.9\textwidth]{photo/clnt2.png}
     \caption{График, построенный по формуле $r_{udp} = \frac{V_{udp}}{V_{tcp}}$ относительно 169.254.245.172}
-    \label{serv2}
-  \end{figure}
-
-
-  \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{photo/clnt-2.png}
-    \caption{График, построенный по формуле $r_{udp} = \frac{V_{udp}}{V_{tcp}}$ относительно 169.254.99.90}
     \label{clnt2}
   \end{figure}
 
-  На рисунках \ref{serv3} и \ref{clnt3} изображены графики разности числа исходящих и входящих ACK-флагов в единицу времени.
-
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{photo/serv-3.png}
-    \caption{График, построенный по формуле $r_{ack} = V_{A_{out}} - V_{A_{in}}$ относительно 169.254.245.172}
-    \label{serv3}
+    \includegraphics[width=0.9\textwidth]{photo/serv2.png}
+    \caption{График, построенный по формуле $r_{udp} = \frac{V_{udp}}{V_{tcp}}$ относительно 169.254.99.90}
+    \label{serv2}
   \end{figure}
 
-  Величина $V_{A_{in}}$ показывает, как часто сервер отказывает клиенту из-за перегрузки. На промежутке 12:03:36 -- 12:03:48 видно, что 
-  осуществляется обмен данными между клиентом и сервером. Как показано на рисунке \ref{clnt3} отрицательное значение объема $V_{A_{in}}$
-  означает, что на данном промежутке времени сервер получает от клиента TCP-пакеты с установленным ACK-флагом. 
+  На рисунках \ref{clnt3} и \ref{serv3} изображены графики разности числа исходящих и входящих ACK-флагов в единицу времени.
 
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{photo/clnt-3.png}
-    \caption{График, построенный по формуле $r_{ack} = V_{A_{out}} - V_{A_{in}}$ относительно 169.254.99.90}
+    \includegraphics[width=0.9\textwidth]{photo/clnt3.png}
+    \caption{График, построенный по формуле $r_{ack} = V_{A_{out}} - V_{A_{in}}$ относительно 169.254.245.172}
     \label{clnt3}
+  \end{figure}
+
+  Величина $V_{A_{in}}$ показывает, как часто сервер отказывает клиенту из-за перегрузки. На промежутке 12:03:36 -- 12:03:49 видно, что 
+  осуществляется обмен данными между клиентом и сервером. Как показано на рисунке \ref{serv3} отрицательное значение объема $V_{A_{in}}$
+  означает, что на данном промежутке времени сервер, получая от клиента TCP-пакеты с установленным ACK-флагом, теряет возможнсоть
+  отвечать на запросы клиента. 
+
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{photo/serv3.png}
+    \caption{График, построенный по формуле $r_{ack} = V_{A_{out}} - V_{A_{in}}$ относительно 169.254.99.90}
+    \label{serv3}
   \end{figure}
 
   Получается, что ПК1 (серверу) соответствует адрес 169.254.99.90, а ПК2 (клиенту) --- 169.254.245.172.
 
+  На рисунках \ref{clnt4} и \ref{serv4} изображены графики частот SYN- и PSH-флагов.
 
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{photo/clnt4.png}
+    \caption{График, построенный по формуле $r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$ относительно 169.254.245.172}
+    \label{clnt4}
+  \end{figure}
+
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{photo/serv4.png}
+    \caption{График, построенный по формуле $r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$ относительно 169.254.99.90}
+    \label{serv4}
+  \end{figure}
+
+  Стоит отметить, что по последним двум графикам можно сделать вывод исходя из количества PSH-флагов в моемент времени 12:03:17 --
+  12:03:22, как показано на рисунке \ref{clnt4}. На этом отрезке времени передаются также TCP-пакеты с установленным PSH-флагом,
+  сигнализируя протоколу TCP отправить все данные, независимо от того, где и сколько их было уже передано.
+
+  По построенным графикам можно сделать несколько выводов.
+  Например, из рисунка \ref{clnt2} отчетливо видно, что с 12:03:50 начинается рост значения $V_{udp}$, а значит
+  увеличивается объем входящего UDP-трафика ПК2. Это можно аргументировать тем, что в этот момент времени происходят
+  различные операции, сделанные на рабочем столе ПК1. В данном случае были произведены движения мышкой.
+
+  Также из рисунков \ref{clnt1} и \ref{serv1} видно, что обмен данными между ПК1 и ПК2 прерывается в 12:04:51. Тогда можно
+  предположить, что именно в это время закончилась RDP-сессия.
+  
+  
   \conclusion
   
   В результате проделанной работы были разобраны методы обнаружения подключения к удаленному рабочему столу по протоколу RDP, где с помощью различных программ
-  удалось рассмотреть принцип работы RDP-протокола. Стоит отметить, что RDP далеко не самый защищенный протокол. Хотя корпорация Microsoft регулярно
-  выпускает обновления для своего программного обеспечения. Однако RDP-сессия становится уязвимой из-за упущений в безопасности, например из-за
-  некорректной конфигурации сервисов или установки устаревших обновлений системы. В таком случае злоумышленник может использовать такие просчеты в своих целях.
-  А людям, ответственным за безопасность компьютерной сети, остается только придумывать новые методы обнаружения и предотвращения несанкционированных подключений
-  к удаленному рабочему столу.
-
+  удалось рассмотреть принцип работы RDP-протокола. Стоит отметить, что хоть RDP далеко не самый защищенный протокол, его обнаружение может стать затруднительным,
+  особенно когда производится подключение к удаленному рабочему столу в реальных условиях с выходом в интернет. И для его анализа обычного перехвата трафика будет
+  недостаточно. Однако, благодаря различным метрикам и построенным по ним графикам, по которым анализируют сетевые атаки, можно получить полезную информацию. 
+  Поэтому в дальнейшем, опираясь на проделанную работу, будут совершены попытки выявления протокола RDP от всех прочих протоколов сети интернет 
+  путем анализа данных по построенным графикам.
+  
 
   \begin{thebibliography}{15}
     \bibitem{1}
@@ -683,7 +711,9 @@
     \bibitem{rdp1}
     Статья <<Wireshark Tutorial: Decrypting RDP Traffic>> [Электронный ресурс] / URL: https://unit42-paloaltonetworks-com.translate.goog/wireshark-tutorial-decrypting-rdp-traffic/?_x_tr_sl=en\&_x_tr_tl=ru\&_x_tr_hl=ru\&_x_tr_pto=op,wapp
     (дата обращения 28.05.2022), Яз. англ.
-
+    \bibitem{tcpflags}
+    Статья <<TCP flags>> [Электронный ресурс] / URL: https://www.keycdn.com/support/tcp-flags\#:~:text=ACK
+    (дата обращения 02.10.2022), Яз. англ.
   \end{thebibliography}
 
   \appendix
