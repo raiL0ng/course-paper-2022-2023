@@ -1,4 +1,4 @@
-import socket, datetime, struct
+import socket, struct
 import os, time
 import keyboard
 

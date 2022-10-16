@@ -346,7 +346,9 @@ def choose_options(k, strt, fin, step):
   if Object_list[k].avg_packet_num == None:
     tmp = Object_list[k].adjcPacketList[-1].timePacket - \
           Object_list[k].adjcPacketList[0].timePacket
-    Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
+    if tmp == 0:
+      tmp = 1
+      Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
   if Object_list[k].avg_packet_size == None:
     avgSize = 0
     for p in Object_list[k].adjcPacketList:
@@ -493,8 +495,7 @@ if __name__ == '__main__':
     try:
       k = int(k)
     except:
-      print('Некорректный ввод. Завершение программы...')
-      break
+      print('Некорректный ввод')
     else:
       if 0 <= k < len(IPList):
         choose_options(k, strt, fin, step)
