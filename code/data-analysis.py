@@ -320,7 +320,7 @@ def print_IP_list(IPList):
 
 # Получение меток и "шага" для оси абсцисс
 def get_x_labels(total_time):
-  step = 0
+  step = 1
   if total_time > 500:
     step = 8
   elif total_time > 100:
@@ -348,7 +348,7 @@ def choose_options(k, strt, fin, step):
           Object_list[k].adjcPacketList[0].timePacket
     if tmp == 0:
       tmp = 1
-      Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
+    Object_list[k].avg_packet_num = round(Object_list[k].amnt_packet / tmp, 3)
   if Object_list[k].avg_packet_size == None:
     avgSize = 0
     for p in Object_list[k].adjcPacketList:

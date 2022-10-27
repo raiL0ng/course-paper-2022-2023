@@ -150,4 +150,3 @@ if __name__ == '__main__':
   os.system(f'ip link set {socket.if_indextoname(interface)} promisc on')
   s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
   start_to_listen(s_listen)
-    
