@@ -161,7 +161,6 @@ def start_to_listen(s_listen, f=-1):
                    f'Fl-fin:{pinf[15]};!\n' )
       if keyboard.is_pressed('space'):
         s_listen.close()
-        f.close()
         print('Завершение программы...')
         break
 
@@ -448,10 +447,13 @@ def choose_mode():
       except:
         print('\nНекорректное название файла!\n')
         continue
+      s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
       start_to_listen(s_listen, f)
+      f.close()
       print(f'Данные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)')
     elif bl == '2':
       Packet_list.clear()
+      s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
       start_to_listen(s_listen)
       print(f'Данные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)')
     elif bl == '3':
@@ -523,6 +525,5 @@ if __name__ == '__main__':
   print(socket.if_nameindex())
   interface = int(input())
   os.system(f'ip link set {socket.if_indextoname(interface)} promisc on')
-  s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
   choose_mode()
 
