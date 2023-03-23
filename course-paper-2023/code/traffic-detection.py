@@ -15,19 +15,21 @@ line = '-------------------------'
 class PacketInf:
 
   def __init__( self, numPacket, timePacket, packetSize, mac_src, mac_dest, protoType
-              , ip_src, ip_dest, port_src, port_dest, len_data
+              , ip_src, ip_dest, port_src, port_dest, len_data, seq=None, ack=None
               , fl_ack=None, fl_psh=None, fl_rst=None, fl_syn=None, fl_fin=None):
     self.numPacket = int(numPacket)
     self.timePacket = float(timePacket)
     self.packetSize = int(packetSize)
     self.mac_src = mac_src
     self.mac_dest = mac_dest
+    self.protoType = protoType
     self.ip_src = ip_src
     self.ip_dest = ip_dest
     self.port_src = port_src
     self.port_dest = port_dest
     self.len_data = int(len_data)
-    self.protoType = protoType
+    self.seq = seq
+    self.ack = ack
     self.fl_ack = fl_ack
     self.fl_psh = fl_psh
     self.fl_rst = fl_rst
@@ -88,13 +90,13 @@ def ipv4_dec(ip_bytes):
 # Получение UDP-сегмента данных
 def get_udp_segment(data):
   src_port, dest_port, size = struct.unpack('!HH2xH', data[:8])
-  return src_port, dest_port, size, data[8:]
+  return str(src_port), str(dest_port), size, data[8:]
 
 
 # Получение TCP-cегмента данных
 def get_tcp_segment(data):
   src_port, dest_port, sequence, ack, some_block = struct.unpack('!HHLLH', data[:14])
-  return src_port, dest_port, sequence, ack, \
+  return str(src_port), str(dest_port), str(sequence), str(ack), \
          some_block, data[(some_block >> 12) * 4:]
 
 
@@ -111,7 +113,7 @@ def start_to_listen(s_listen, f=-1):
   while True:
     # Получение пакетов в виде набора hex-чисел
     raw_data, _ = s_listen.recvfrom(65565)
-    pinf = [''] * 16
+    pinf = [''] * 18
     pinf[0], pinf[1] = NumPacket, time.time()
     pinf[2] = len(raw_data)
     # Если это интернет-протокол четвертой версии    
@@ -137,18 +139,19 @@ def start_to_listen(s_listen, f=-1):
       # Если это TCP-протокол  
       if proto == 6:
         pinf[5] = 'TCP'
-        pinf[8], pinf[9], _, \
-        _, flags, data_tcp = get_tcp_segment(data_ipv4)
+        pinf[8], pinf[9], pinf[11], \
+        pinf[12], flags, data_tcp = get_tcp_segment(data_ipv4)
         pinf[10] = len(data_tcp)
-        pinf[11] = (flags & 16) >> 4
-        pinf[12] = (flags & 8) >> 3
-        pinf[13] = (flags & 4) >> 2
-        pinf[14] = (flags & 2) >> 1
-        pinf[15] = flags & 1
+        pinf[13] = (flags & 16) >> 4
+        pinf[14] = (flags & 8) >> 3
+        pinf[15] = (flags & 4) >> 2
+        pinf[16] = (flags & 2) >> 1
+        pinf[17] = flags & 1
         Packet_list.append(PacketInf( pinf[0], pinf[1], pinf[2], pinf[3]
                                     , pinf[4], pinf[5], pinf[6], pinf[7]
                                     , pinf[8], pinf[9], pinf[10], pinf[11]
-                                    , pinf[12], pinf[13], pinf[14], pinf[15] ))
+                                    , pinf[12], pinf[13], pinf[14], pinf[15]
+                                    , pinf[16], pinf[17] ))
         print_packet_inf(Packet_list[-1])
         # print('#############################')
         # print(pinf[10], '---', len(format_data(data_tcp)))
@@ -156,9 +159,9 @@ def start_to_listen(s_listen, f=-1):
           f.write( f'No:{pinf[0]};Time:{pinf[1]};Pac-size:{pinf[2]};' +
                    f'MAC-src:{pinf[3]};MAC-dest:{pinf[4]};Type:{pinf[5]};' + 
                    f'IP-src:{pinf[6]};IP-dest:{pinf[7]};Port-src:{pinf[8]};' + 
-                   f'Port-dest:{pinf[9]};Len-data:{pinf[10]};Fl-ack:{pinf[11]};' +
-                   f'Fl-psh:{pinf[12]};Fl-rst:{pinf[13]};Fl-syn:{pinf[14]};' + 
-                   f'Fl-fin:{pinf[15]};!\n' )
+                   f'Port-dest:{pinf[9]};Len-data:{pinf[10]};Seq:{pinf[11]};' +
+                   f'Ack:{pinf[12]};Fl-ack:{pinf[11]};Fl-psh:{pinf[12]};' +
+                   f'Fl-rst:{pinf[13]};Fl-syn:{pinf[14]};Fl-fin:{pinf[15]};!\n' )
       if keyboard.is_pressed('space'):
         s_listen.close()
         print('Завершение программы...')
