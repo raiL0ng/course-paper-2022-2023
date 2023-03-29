@@ -460,7 +460,7 @@ def get_pos_by_IP(curIP):
 
 # Получение меток и "шага" для оси абсцисс
 def get_x_labels(total_time):
-  x_axisLabels = []
+  global x_axisLabels
   step = 1
   if total_time > 600:
     step = 30
@@ -468,8 +468,9 @@ def get_x_labels(total_time):
     step = 10
   elif total_time > 50:
     step = 5
-  for i in range(0, len(Labels_list), step):
-    x_axisLabels.append(Labels_list[i])
+  if x_axisLabels == []:
+    for i in range(0, len(Labels_list), step):
+      x_axisLabels.append(Labels_list[i])
   return step
 
 def get_2nd_IP_for_plot(k):
