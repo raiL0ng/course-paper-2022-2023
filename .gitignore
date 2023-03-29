@@ -11,3 +11,4 @@ test*.py
 temp.py
 _minted-Tokarev-course-work/
 data*.log
+*.log
