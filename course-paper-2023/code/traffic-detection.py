@@ -184,7 +184,7 @@ def read_from_file(inf):
     if a[5] == 'TCP':
       Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
                                   , a[6], a[7], a[8], a[9], a[10], a[11]
-                                  , a[12], a[13], a[14], a[15] ))
+                                  , a[12], a[13], a[14], a[15], a[16], a[17] ))
     elif a[5] == 'UDP':
       Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
                                   , a[6], a[7], a[8], a[9], a[10] ))
@@ -534,21 +534,16 @@ def choose_options(k, strt, fin, step):
       print_adjacent_packets(Object_list[k].adjcPacketList)
     elif bl == '2':
       if Object_list[k].in_out_rel_data == None:
-        # data = get_in_out_rel(curIP, strt, fin)
         Object_list[k].in_out_rel_data = get_in_out_rel(curIP, strt, fin)
       x = [i for i in range(0, len(Object_list[k].in_out_rel_data))]
       x_labels = [i for i in range(0, len(x), step)]
-      # print('1st', x_labels, len(x_labels), 'x=', len(x))
-      # print('\nxaxislabels=', x_axisLabels, len(x_axisLabels))
       scnd_IP = get_2nd_IP_for_plot(k)
       if scnd_IP == -1:
         continue
       if scnd_IP != 'None':
         pos = get_pos_by_IP(scnd_IP)
         if Object_list[pos].in_out_rel_data == None:
-          # data = get_in_out_rel(scnd_IP, strt, fin)
           Object_list[pos].in_out_rel_data = get_in_out_rel(scnd_IP, strt, fin)
-        # x1 = [i for i in range(0, len(Object_list[pos].in_out_rel_data))]
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
@@ -640,25 +635,24 @@ def choose_options(k, strt, fin, step):
       fig_1.grid()
       fig_1.set_title('Частота флагов SYN' + \
                        r' ($r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$)', fontsize=15)
-      # fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
       fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
       plt.plot(x, Object_list[k].syn_flags_freq_data, 'b', label=curIP)
       if scnd_IP != 'None':
         plt.plot(x, Object_list[pos].syn_flags_freq_data, 'r', label=scnd_IP)
-      print(x_labels, len(x_labels))
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_1.legend()
-      # fig_2 = fig.add_subplot(gs[1, 0])
-      # fig_2.grid()
-      # plt.plot(x, Object_list[k].psh_flags_freq_data, 'g', label=curIP)
-      # fig_2.set_title('Частота флагов PSH' + \
-      #                 r' ($r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$)', fontsize=15)
-      # fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
-      # if scnd_IP != 'None':
-      #   plt.plot(x, Object_list[pos].psh_flags_freq_data, 'y', label=scnd_IP)
-      # plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
-      # fig_2.legend()
+      fig_2 = fig.add_subplot(gs[1, 0])
+      fig_2.grid()
+      plt.plot(x, Object_list[k].psh_flags_freq_data, 'g', label=curIP)
+      fig_2.set_title('Частота флагов PSH' + \
+                      r' ($r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$)', fontsize=15)
+      fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
+      if scnd_IP != 'None':
+        plt.plot(x, Object_list[pos].psh_flags_freq_data, 'y', label=scnd_IP)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_2.legend()
       plt.show()
     elif bl == '6':
       break
