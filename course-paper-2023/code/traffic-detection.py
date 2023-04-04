@@ -4,12 +4,16 @@ import time, socket, os, struct, keyboard
 from colorama import init, Back, Fore
 
 init(autoreset=True)
+
+
+# Глобальные переменные
 FileName = ''
 Packet_list = []
 Object_list = []
 Labels_list = []
 x_axisLabels = []
 line = '-------------------------'
+
 
 # Класс, содержащий информацию о каком-либо пакете
 class PacketInf:
@@ -210,6 +214,8 @@ def print_packet_inf(obj):
 # Получение общей информации о текущей
 # попытке перехвата трафика
 def get_common_data():
+  global Labels_list
+  Labels_list.clear()
   IPList = set()
   numPacketsPerSec = []
   curTime = Packet_list[0].timePacket + 1
@@ -362,7 +368,6 @@ def get_ack_flags_diff(exploreIP, strt, fin):
           pos = k
           break
       if Packet_list[k].protoType == 'TCP' and Packet_list[k].fl_ack == '1':
-        print('yes')
         if Packet_list[k].ip_src == exploreIP:
           cntOutput += 1
         if Packet_list[k].ip_dest == exploreIP:
@@ -468,10 +473,11 @@ def get_x_labels(total_time):
     step = 10
   elif total_time > 50:
     step = 5
-  if x_axisLabels == []:
-    for i in range(0, len(Labels_list), step):
-      x_axisLabels.append(Labels_list[i])
+  x_axisLabels.clear()
+  for i in range(0, len(Labels_list), step):
+    x_axisLabels.append(Labels_list[i])
   return step
+
 
 def get_2nd_IP_for_plot(k):
   print('Изобразить на графике еще один объект. Выберите ' + \
@@ -490,6 +496,7 @@ def get_2nd_IP_for_plot(k):
     if pos != 0:
       scnd_IP = Object_list[k].adjcIPList[pos - 1]
   return scnd_IP
+
 
 # Выбор опций для выбранного IP-адреса
 def choose_options(k, strt, fin, step):
@@ -585,7 +592,6 @@ def choose_options(k, strt, fin, step):
       plt.show()
     elif bl == '4':
       if Object_list[k].ack_flags_diff_data == None:
-        # data = get_ack_flags_diff(curIP, strt, fin)
         Object_list[k].ack_flags_diff_data = get_ack_flags_diff(curIP, strt, fin)
       x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data))]
       x_labels = [i for i in range(0, len(x), step)]
@@ -659,6 +665,7 @@ def choose_options(k, strt, fin, step):
 
 
 def choose_mode():
+  global Packet_list, Object_list, Labels_list
   while True:
     print('1. Перехват трафика и запись данных в файл')
     print('2. Перехват трафика для анализа данных')
@@ -668,6 +675,8 @@ def choose_mode():
     bl = input()
     if bl == '1':
       Packet_list.clear()
+      Object_list.clear()
+      Labels_list.clear()
       print('Введите название файла (например: data.log)')
       FileName = input()
       try:
@@ -682,11 +691,14 @@ def choose_mode():
         print('Запустите программу от имени администратора!')
         return
       else:
+        print('\nНачался процесс захвата трафика...\n')
         start_to_listen(s_listen, f)
       f.close()
-      print(f'Данные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)')
+      print(f'\nДанные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)\n')
     elif bl == '2':
       Packet_list.clear()
+      Object_list.clear()
+      Labels_list.clear()
       try:
         s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
       except PermissionError:
@@ -694,10 +706,13 @@ def choose_mode():
         print('Запустите программу от имени администратора!')
         return
       else:
+        print('\nНачался процесс захвата трафика...\n')
         start_to_listen(s_listen)
-      print(f'Данные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)')
+      print(f'\nДанные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)\n')
     elif bl == '3':
       Packet_list.clear()
+      Object_list.clear()
+      Labels_list.clear()
       print('Введите название файла (например: data.log)')
       FileName = input()
       if not Packet_list:
@@ -712,7 +727,7 @@ def choose_mode():
             break
           read_from_file(inf)
         f.close()
-      print(f'Данные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)')
+      print(f'\nДанные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)\n')
     elif bl == '4':
       if Packet_list == []:
         print('\nНет данных! Сначала необходимо получить данные!\n')
