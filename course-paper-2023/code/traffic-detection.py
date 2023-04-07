@@ -57,6 +57,10 @@ class ExploreObject:
     self.udp_tcp_rel_data = None
     self.syn_flags_freq_data = None
     self.psh_flags_freq_data = None
+    self.pkt_amnt_src_data = None
+    self.pkt_amnt_dest_data = None
+    self.pkt_size_data = None
+    self.len_pktdata_data = None
     self.adjcIPList = None
     self.adjcPacketList = None
 
@@ -441,6 +445,47 @@ def get_psh_flags_freq(exploreIP, strt, fin):
   return rel_list
 
 
+def get_pktsize_per_sec(exploreIP, strt, fin):
+  pktAmntSrcList = []
+  pktAmntDestList = []
+  pktSizeList = []
+  lenDataList = []
+  curTime = strt + 1
+  fin += 1
+  pos = 0
+  while curTime < fin:
+    cntpktsrc = 0
+    cntpktdest = 0
+    maxpktsize = 0
+    maxlendata = 0
+    for k in range(pos, len(Packet_list)):
+      if Packet_list[k].timePacket > curTime:
+        pktAmntSrcList.append(cntpktsrc)
+        pktAmntDestList.append(cntpktdest)
+        pktSizeList.append(maxpktsize)
+        lenDataList.append(maxlendata)
+        pos = k
+        break
+      if Packet_list[k].ip_src == exploreIP:
+        cntpktsrc += 1
+        if maxpktsize < Packet_list[k].packetSize:
+          maxpktsize = Packet_list[k].packetSize
+        if maxlendata < Packet_list[k].len_data:
+          maxlendata = Packet_list[k].len_data
+      if Packet_list[k].ip_dest == exploreIP:
+        cntpktdest += 1
+        if maxpktsize < Packet_list[k].packetSize:
+          maxpktsize = Packet_list[k].packetSize
+        if maxlendata < Packet_list[k].len_data:
+          maxlendata = Packet_list[k].len_data
+    curTime += 1
+  pktAmntSrcList.append(cntpktsrc)
+  pktAmntDestList.append(cntpktdest)
+  pktSizeList.append(maxpktsize)
+  lenDataList.append(maxlendata)
+  return pktAmntSrcList, pktAmntDestList, pktSizeList, lenDataList
+
+
 # Получение общей информации о трафике,
 # связанном с выбранным IP-адресом
 def get_inf_about_IP(exploreIP):
@@ -483,7 +528,7 @@ def get_2nd_IP_for_plot(k):
   print('Изобразить на графике еще один объект. Выберите ' + \
             'IP-адрес для добавления (нажмите цифру)')
   print_IP_list(Object_list[k].adjcIPList, True)
-  scnd_IP = 'None'
+  scndIP = 'None'
   try:
     pos = int(input())
   except:
@@ -494,8 +539,8 @@ def get_2nd_IP_for_plot(k):
       print('Некорректный ввод!')
       return -1
     if pos != 0:
-      scnd_IP = Object_list[k].adjcIPList[pos - 1]
-  return scnd_IP
+      scndIP = Object_list[k].adjcIPList[pos - 1]
+  return scndIP
 
 
 # Выбор опций для выбранного IP-адреса
@@ -535,7 +580,9 @@ def choose_options(k, strt, fin, step):
     3. Построить график отношения объема входящего UDP-трафика и объёма входящего TCP-трафика
     4. Построить график разности числа исходящих и числа входящих ACK-флагов в единицу времени
     5. Построить график частоты SYN и PSH флагов во входящих пакетах
-    6. Вернуться к выбору IP-адреса """)
+    6. Построить график отображения количества пакетов в единицу времени
+    7. Построить график отображения максимов среди пакетов в единицу времени 
+    8. Вернуться к выбору IP-адреса """)
     bl = input()
     if bl == '1':
       print_adjacent_packets(Object_list[k].adjcPacketList)
@@ -544,13 +591,13 @@ def choose_options(k, strt, fin, step):
         Object_list[k].in_out_rel_data = get_in_out_rel(curIP, strt, fin)
       x = [i for i in range(0, len(Object_list[k].in_out_rel_data))]
       x_labels = [i for i in range(0, len(x), step)]
-      scnd_IP = get_2nd_IP_for_plot(k)
-      if scnd_IP == -1:
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
         continue
-      if scnd_IP != 'None':
-        pos = get_pos_by_IP(scnd_IP)
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
         if Object_list[pos].in_out_rel_data == None:
-          Object_list[pos].in_out_rel_data = get_in_out_rel(scnd_IP, strt, fin)
+          Object_list[pos].in_out_rel_data = get_in_out_rel(scndIP, strt, fin)
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
@@ -559,8 +606,8 @@ def choose_options(k, strt, fin, step):
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       f.set_ylabel(r'$r_{in/out} = \frac{V_{in}}{V_{out}}$', fontsize=15)
       plt.plot(x, Object_list[k].in_out_rel_data, label=curIP)
-      if scnd_IP != 'None':
-        plt.plot(x, Object_list[pos].in_out_rel_data, label=scnd_IP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].in_out_rel_data, label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=10)
       f.legend()
       plt.show()
@@ -569,13 +616,13 @@ def choose_options(k, strt, fin, step):
         Object_list[k].udp_tcp_rel_data = get_udp_tcp_rel(curIP, strt, fin)
       x = [i for i in range(0, len(Object_list[k].udp_tcp_rel_data))]
       x_labels = [i for i in range(0, len(x), step)]
-      scnd_IP = get_2nd_IP_for_plot(k)
-      if scnd_IP == -1:
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
         continue
-      if scnd_IP != 'None':
-        pos = get_pos_by_IP(scnd_IP)
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
         if Object_list[pos].udp_tcp_rel_data == None:
-          Object_list[pos].udp_tcp_rel_data = get_udp_tcp_rel(scnd_IP, strt, fin)
+          Object_list[pos].udp_tcp_rel_data = get_udp_tcp_rel(scndIP, strt, fin)
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
@@ -585,8 +632,8 @@ def choose_options(k, strt, fin, step):
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       f.set_ylabel(r'$r_{in} = \frac{V_{udp}}{V_{tcp}}$', fontsize=15)
       plt.plot(x, Object_list[k].udp_tcp_rel_data, label=curIP)
-      if scnd_IP != 'None':
-        plt.plot(x, Object_list[pos].udp_tcp_rel_data, label=scnd_IP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].udp_tcp_rel_data, label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=10)
       f.legend()
       plt.show()
@@ -595,13 +642,13 @@ def choose_options(k, strt, fin, step):
         Object_list[k].ack_flags_diff_data = get_ack_flags_diff(curIP, strt, fin)
       x = [i for i in range(0, len(Object_list[k].ack_flags_diff_data))]
       x_labels = [i for i in range(0, len(x), step)]
-      scnd_IP = get_2nd_IP_for_plot(k)
-      if scnd_IP == -1:
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
         continue
-      if scnd_IP != 'None':
-        pos = get_pos_by_IP(scnd_IP)
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
         if Object_list[pos].ack_flags_diff_data == None:
-          Object_list[pos].ack_flags_diff_data = get_ack_flags_diff(scnd_IP, strt, fin)
+          Object_list[pos].ack_flags_diff_data = get_ack_flags_diff(scndIP, strt, fin)
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       f = fig.add_subplot()
       f.grid()
@@ -610,8 +657,8 @@ def choose_options(k, strt, fin, step):
       f.set_xlabel('Общее время перехвата трафика', fontsize=15)
       f.set_ylabel(r'$r_{ack} = V_{A_{out}} - V_{A_{in}}$', fontsize=15)
       plt.plot(x, Object_list[k].ack_flags_diff_data, label=curIP)
-      if scnd_IP != 'None':
-        plt.plot(x, Object_list[pos].ack_flags_diff_data, label=scnd_IP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].ack_flags_diff_data, label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=10)
       f.legend()
       plt.show()
@@ -624,16 +671,16 @@ def choose_options(k, strt, fin, step):
         Object_list[k].psh_flags_freq_data = data
       x = [i for i in range(0, len(Object_list[k].syn_flags_freq_data))]
       x_labels = [i for i in range(0, len(x), step)]
-      scnd_IP = get_2nd_IP_for_plot(k)
-      if scnd_IP == -1:
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
         continue
-      if scnd_IP != 'None':
-        pos = get_pos_by_IP(scnd_IP)
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
         if Object_list[pos].syn_flags_freq_data == None:
-          data = get_syn_flags_freq(scnd_IP, strt, fin)
+          data = get_syn_flags_freq(scndIP, strt, fin)
           Object_list[pos].syn_flags_freq_data = data
         if Object_list[pos].psh_flags_freq_data == None:
-          data = get_psh_flags_freq(scnd_IP, strt, fin)
+          data = get_psh_flags_freq(scndIP, strt, fin)
           Object_list[pos].psh_flags_freq_data = data
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
@@ -644,23 +691,113 @@ def choose_options(k, strt, fin, step):
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
       fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
       plt.plot(x, Object_list[k].syn_flags_freq_data, 'b', label=curIP)
-      if scnd_IP != 'None':
-        plt.plot(x, Object_list[pos].syn_flags_freq_data, 'r', label=scnd_IP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].syn_flags_freq_data, 'r', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_1.legend()
       fig_2 = fig.add_subplot(gs[1, 0])
       fig_2.grid()
-      plt.plot(x, Object_list[k].psh_flags_freq_data, 'g', label=curIP)
+      plt.plot(x, Object_list[k].psh_flags_freq_data, 'cyan', label=curIP)
       fig_2.set_title('Частота флагов PSH' + \
                       r' ($r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$)', fontsize=15)
       fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
       fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
-      if scnd_IP != 'None':
-        plt.plot(x, Object_list[pos].psh_flags_freq_data, 'y', label=scnd_IP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].psh_flags_freq_data, 'g', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_2.legend()
       plt.show()
     elif bl == '6':
+      if Object_list[k].pkt_amnt_src_data == None:
+        d1, d2, d3, d4 = get_pktsize_per_sec(curIP, strt, fin)
+        Object_list[k].pkt_amnt_src_data = d1
+        Object_list[k].pkt_amnt_dest_data = d2
+        Object_list[k].pkt_size_data = d3
+        Object_list[k].len_pktdata_data = d4
+      x = [i for i in range(0, len(Object_list[k].pkt_amnt_src_data))]
+      x_labels = [i for i in range(0, len(x), step)]
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
+        continue
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
+        if Object_list[pos].pkt_amnt_src_data == None:
+          d1, d2, d3, d4 = get_pktsize_per_sec(scndIP, strt, fin)
+          Object_list[pos].pkt_amnt_src_data = d1
+          Object_list[pos].pkt_amnt_dest_data = d2
+          Object_list[pos].pkt_size_data = d3
+          Object_list[pos].len_pktdata_data = d4
+      fig = plt.figure(figsize=(16, 6), constrained_layout=True)
+      gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
+      fig_1 = fig.add_subplot(gs[0, 0])
+      fig_1.grid()
+      fig_1.set_title('Количество входящих пакетов, полученных за ' + \
+                      'единицу времени', fontsize=15)
+      fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
+      plt.plot(x, Object_list[k].pkt_amnt_dest_data, 'b', label=curIP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].pkt_amnt_dest_data, 'r', label=scndIP)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_1.legend()
+      fig_2 = fig.add_subplot(gs[1, 0])
+      fig_2.grid()
+      plt.plot(x, Object_list[k].pkt_amnt_src_data, 'orange', label=curIP)
+      fig_2.set_title('Количество исходящих пакетов, полученных за ' + \
+                      'единицу времени', fontsize=15)
+      fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].pkt_amnt_src_data, 'g', label=scndIP)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_2.legend()
+      plt.show()
+    elif bl == '7':
+      if Object_list[k].pkt_amnt_src_data == None:
+        d1, d2, d3, d4 = get_pktsize_per_sec(curIP, strt, fin)
+        Object_list[k].pkt_amnt_src_data = d1
+        Object_list[k].pkt_amnt_dest_data = d2
+        Object_list[k].pkt_size_data = d3
+        Object_list[k].len_pktdata_data = d4
+      x = [i for i in range(0, len(Object_list[k].pkt_size_data))]
+      x_labels = [i for i in range(0, len(x), step)]
+      scndIP = get_2nd_IP_for_plot(k)
+      if scndIP == -1:
+        continue
+      if scndIP != 'None':
+        pos = get_pos_by_IP(scndIP)
+        if Object_list[pos].pkt_amnt_src_data == None:
+          d1, d2, d3, d4 = get_pktsize_per_sec(scndIP, strt, fin)
+          Object_list[pos].pkt_amnt_src_data = d1
+          Object_list[pos].pkt_amnt_dest_data = d2
+          Object_list[pos].pkt_size_data = d3
+          Object_list[pos].len_pktdata_data = d4
+      fig = plt.figure(figsize=(16, 6), constrained_layout=True)
+      gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
+      fig_1 = fig.add_subplot(gs[0, 0])
+      fig_1.grid()
+      fig_1.set_title('Максимальный размер пакетов, полученных за ' + \
+                      'единицу времени', fontsize=15)
+      fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
+      plt.plot(x, Object_list[k].pkt_size_data, 'b', label=curIP)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].pkt_size_data, 'r', label=scndIP)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_1.legend()
+      fig_2 = fig.add_subplot(gs[1, 0])
+      fig_2.grid()
+      plt.plot(x, Object_list[k].len_pktdata_data, 'orange', label=curIP)
+      fig_2.set_title('Максимальный размер блоков данных, полученных за ' + \
+                      'единицу времени', fontsize=15)
+      fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
+      # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
+      if scndIP != 'None':
+        plt.plot(x, Object_list[pos].len_pktdata_data, 'g', label=scndIP)
+      plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
+      fig_2.legend()
+      plt.show()
+    elif bl == '8':
       break
 
 
