@@ -58,9 +58,9 @@ class ExploreObject:
     self.syn_flags_freq_data = None
     self.psh_flags_freq_data = None
     self.pkt_amnt_src_data = None
-    self.pkt_amnt_dest_data = None
-    self.pkt_size_data = None
-    self.len_pktdata_data = None
+    self.pkt_amnt_dst_data = None
+    self.pkt_size_data_src = None
+    self.pkt_size_data_dst = None
     self.adjcIPList = None
     self.adjcPacketList = None
 
@@ -262,6 +262,7 @@ def print_IP_list(IPList, fl=False):
       print ('[' + str(num), '---', el, end='] ')
     cnt += 1
     num += 1
+  print('')
 
 
 # Вывод пакетов, связанных с выбранным IP-адресом 
@@ -445,45 +446,80 @@ def get_psh_flags_freq(exploreIP, strt, fin):
   return rel_list
 
 
-def get_pktsize_per_sec(exploreIP, strt, fin):
+def get_pktamnt_and_size_persec(exploreIP, strt, fin):
   pktAmntSrcList = []
-  pktAmntDestList = []
-  pktSizeList = []
-  lenDataList = []
+  pktAmntDstList = []
+  pktSizeSrcList = []
+  pktSizeDstList = []
   curTime = strt + 1
   fin += 1
   pos = 0
   while curTime < fin:
     cntpktsrc = 0
     cntpktdest = 0
-    maxpktsize = 0
-    maxlendata = 0
+    maxpktsizesrc = 0
+    maxpktsizedst = 0
     for k in range(pos, len(Packet_list)):
       if Packet_list[k].timePacket > curTime:
         pktAmntSrcList.append(cntpktsrc)
-        pktAmntDestList.append(cntpktdest)
-        pktSizeList.append(maxpktsize)
-        lenDataList.append(maxlendata)
+        pktAmntDstList.append(cntpktdest)
+        pktSizeSrcList.append(maxpktsizesrc)
+        pktSizeDstList.append(maxpktsizedst)
         pos = k
         break
       if Packet_list[k].ip_src == exploreIP:
         cntpktsrc += 1
-        if maxpktsize < Packet_list[k].packetSize:
-          maxpktsize = Packet_list[k].packetSize
-        if maxlendata < Packet_list[k].len_data:
-          maxlendata = Packet_list[k].len_data
+        if maxpktsizesrc < Packet_list[k].packetSize:
+          maxpktsizesrc = Packet_list[k].packetSize
       if Packet_list[k].ip_dest == exploreIP:
         cntpktdest += 1
-        if maxpktsize < Packet_list[k].packetSize:
-          maxpktsize = Packet_list[k].packetSize
-        if maxlendata < Packet_list[k].len_data:
-          maxlendata = Packet_list[k].len_data
+        if maxpktsizedst < Packet_list[k].packetSize:
+          maxpktsizedst = Packet_list[k].packetSize
     curTime += 1
   pktAmntSrcList.append(cntpktsrc)
-  pktAmntDestList.append(cntpktdest)
-  pktSizeList.append(maxpktsize)
-  lenDataList.append(maxlendata)
-  return pktAmntSrcList, pktAmntDestList, pktSizeList, lenDataList
+  pktAmntDstList.append(cntpktdest)
+  pktSizeSrcList.append(maxpktsizesrc)
+  pktSizeDstList.append(maxpktsizedst)
+  return pktAmntSrcList, pktAmntDstList, pktSizeSrcList, pktSizeDstList
+
+
+# def get_pktamnt_and_size_persec(exploreIP, strt, fin):
+#   pktSizeSrcList = []
+#   pktSizeDstList = []
+#   lenDataSrcList = []
+#   lenDataDstList = []
+#   curTime = strt + 1
+#   fin += 1
+#   pos = 0
+#   while curTime < fin:
+#     maxpktsizesrc = 0
+#     maxpktsizedst = 0
+#     maxlendatasrc = 0
+#     maxlendatadst = 0
+#     for k in range(pos, len(Packet_list)):
+#       if Packet_list[k].timePacket > curTime:
+#         pktSizeSrcList.append(maxpktsizesrc)
+#         pktSizeDstList.append(maxpktsizedst)
+#         lenDataSrcList.append(maxlendatasrc)
+#         lenDataDstList.append(maxlendatadst)
+#         pos = k
+#         break
+#       if Packet_list[k].ip_src == exploreIP:
+#         if maxpktsizesrc < Packet_list[k].packetSize:
+#           maxpktsizesrc = Packet_list[k].packetSize
+#         if maxlendatasrc < Packet_list[k].len_data:
+#           maxlendatasrc = Packet_list[k].len_data
+#       if Packet_list[k].ip_dest == exploreIP:
+#         if maxpktsizedst < Packet_list[k].packetSize:
+#           maxpktsizedst = Packet_list[k].packetSize
+#         if maxlendatadst < Packet_list[k].len_data:
+#           maxlendatadst = Packet_list[k].len_data
+#     curTime += 1
+#   pktSizeSrcList.append(maxpktsizesrc)
+#   pktSizeDstList.append(maxpktsizedst)
+#   lenDataSrcList.append(maxlendatasrc)
+#   lenDataDstList.append(maxlendatadst)
+#   return pktSizeSrcList, pktSizeDstList,lenDataSrcList, lenDataDstList
 
 
 # Получение общей информации о трафике,
@@ -525,7 +561,7 @@ def get_x_labels(total_time):
 
 
 def get_2nd_IP_for_plot(k):
-  print('Изобразить на графике еще один объект. Выберите ' + \
+  print('\nИзобразить на графике еще один объект. Выберите ' + \
             'IP-адрес для добавления (нажмите цифру)')
   print_IP_list(Object_list[k].adjcIPList, True)
   scndIP = 'None'
@@ -581,7 +617,7 @@ def choose_options(k, strt, fin, step):
     4. Построить график разности числа исходящих и числа входящих ACK-флагов в единицу времени
     5. Построить график частоты SYN и PSH флагов во входящих пакетах
     6. Построить график отображения количества пакетов в единицу времени
-    7. Построить график отображения максимов среди пакетов в единицу времени 
+    7. Построить график отображения максимумов среди пакетов в единицу времени
     8. Вернуться к выбору IP-адреса """)
     bl = input()
     if bl == '1':
@@ -709,11 +745,11 @@ def choose_options(k, strt, fin, step):
       plt.show()
     elif bl == '6':
       if Object_list[k].pkt_amnt_src_data == None:
-        d1, d2, d3, d4 = get_pktsize_per_sec(curIP, strt, fin)
+        d1, d2, d3, d4 = get_pktamnt_and_size_persec(curIP, strt, fin)
         Object_list[k].pkt_amnt_src_data = d1
-        Object_list[k].pkt_amnt_dest_data = d2
-        Object_list[k].pkt_size_data = d3
-        Object_list[k].len_pktdata_data = d4
+        Object_list[k].pkt_amnt_dst_data = d2
+        Object_list[k].pkt_size_data_src = d3
+        Object_list[k].pkt_size_data_dst = d4
       x = [i for i in range(0, len(Object_list[k].pkt_amnt_src_data))]
       x_labels = [i for i in range(0, len(x), step)]
       scndIP = get_2nd_IP_for_plot(k)
@@ -722,11 +758,11 @@ def choose_options(k, strt, fin, step):
       if scndIP != 'None':
         pos = get_pos_by_IP(scndIP)
         if Object_list[pos].pkt_amnt_src_data == None:
-          d1, d2, d3, d4 = get_pktsize_per_sec(scndIP, strt, fin)
+          d1, d2, d3, d4 = get_pktamnt_and_size_persec(scndIP, strt, fin)
           Object_list[pos].pkt_amnt_src_data = d1
-          Object_list[pos].pkt_amnt_dest_data = d2
-          Object_list[pos].pkt_size_data = d3
-          Object_list[pos].len_pktdata_data = d4
+          Object_list[pos].pkt_amnt_dst_data = d2
+          Object_list[pos].pkt_size_data_src = d3
+          Object_list[pos].pkt_size_data_dst = d4
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
       fig_1 = fig.add_subplot(gs[0, 0])
@@ -735,9 +771,9 @@ def choose_options(k, strt, fin, step):
                       'единицу времени', fontsize=15)
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
       # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
-      plt.plot(x, Object_list[k].pkt_amnt_dest_data, 'b', label=curIP)
+      plt.plot(x, Object_list[k].pkt_amnt_dst_data, 'b', label=curIP)
       if scndIP != 'None':
-        plt.plot(x, Object_list[pos].pkt_amnt_dest_data, 'r', label=scndIP)
+        plt.plot(x, Object_list[pos].pkt_amnt_dst_data, 'r', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_1.legend()
       fig_2 = fig.add_subplot(gs[1, 0])
@@ -754,12 +790,12 @@ def choose_options(k, strt, fin, step):
       plt.show()
     elif bl == '7':
       if Object_list[k].pkt_amnt_src_data == None:
-        d1, d2, d3, d4 = get_pktsize_per_sec(curIP, strt, fin)
+        d1, d2, d3, d4 = get_pktamnt_and_size_persec(curIP, strt, fin)
         Object_list[k].pkt_amnt_src_data = d1
-        Object_list[k].pkt_amnt_dest_data = d2
-        Object_list[k].pkt_size_data = d3
-        Object_list[k].len_pktdata_data = d4
-      x = [i for i in range(0, len(Object_list[k].pkt_size_data))]
+        Object_list[k].pkt_amnt_dst_data = d2
+        Object_list[k].pkt_size_data_src = d3
+        Object_list[k].pkt_size_data_dst = d4
+      x = [i for i in range(0, len(Object_list[k].pkt_size_data_src))]
       x_labels = [i for i in range(0, len(x), step)]
       scndIP = get_2nd_IP_for_plot(k)
       if scndIP == -1:
@@ -767,33 +803,33 @@ def choose_options(k, strt, fin, step):
       if scndIP != 'None':
         pos = get_pos_by_IP(scndIP)
         if Object_list[pos].pkt_amnt_src_data == None:
-          d1, d2, d3, d4 = get_pktsize_per_sec(scndIP, strt, fin)
+          d1, d2, d3, d4 = get_pktamnt_and_size_persec(scndIP, strt, fin)
           Object_list[pos].pkt_amnt_src_data = d1
-          Object_list[pos].pkt_amnt_dest_data = d2
-          Object_list[pos].pkt_size_data = d3
-          Object_list[pos].len_pktdata_data = d4
+          Object_list[pos].pkt_amnt_dst_data = d2
+          Object_list[pos].pkt_size_data_src = d3
+          Object_list[pos].pkt_size_data_dst = d4
       fig = plt.figure(figsize=(16, 6), constrained_layout=True)
       gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
       fig_1 = fig.add_subplot(gs[0, 0])
       fig_1.grid()
-      fig_1.set_title('Максимальный размер пакетов, полученных за ' + \
+      fig_1.set_title('Максимальный размер входящих пакетов, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
       # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
-      plt.plot(x, Object_list[k].pkt_size_data, 'b', label=curIP)
+      plt.plot(x, Object_list[k].pkt_size_data_dst, 'b', label=curIP)
       if scndIP != 'None':
-        plt.plot(x, Object_list[pos].pkt_size_data, 'r', label=scndIP)
+        plt.plot(x, Object_list[pos].pkt_size_data_dst, 'r', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_1.legend()
       fig_2 = fig.add_subplot(gs[1, 0])
       fig_2.grid()
-      plt.plot(x, Object_list[k].len_pktdata_data, 'orange', label=curIP)
+      plt.plot(x, Object_list[k].pkt_size_data_src, 'orange', label=curIP)
       fig_2.set_title('Максимальный размер блоков данных, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
       # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
       if scndIP != 'None':
-        plt.plot(x, Object_list[pos].len_pktdata_data, 'g', label=scndIP)
+        plt.plot(x, Object_list[pos].pkt_size_data_src, 'g', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
       fig_2.legend()
       plt.show()
