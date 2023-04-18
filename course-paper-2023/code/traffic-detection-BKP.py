@@ -116,7 +116,7 @@ def format_data(data):
 
 
 # Перехват трафика и вывод информации в консоль
-def start_to_listen(s_listen):
+def start_to_listen(s_listen, f=-1):
   global Packet_list
   NumPacket = 1
   while True:
@@ -140,6 +140,11 @@ def start_to_listen(s_listen):
                                     , pinf[6], pinf[7], pinf[8]
                                     , pinf[9], pinf[10]))
         print_packet_inf(Packet_list[-1])
+        if f != -1:
+          f.write( f'No:{pinf[0]};Time:{pinf[1]};Pac-size:{pinf[2]};' +
+                   f'MAC-src:{pinf[3]};MAC-dest:{pinf[4]};Type:{pinf[5]};' + 
+                   f'IP-src:{pinf[6]};IP-dest:{pinf[7]};Port-src:{pinf[8]};' + 
+                   f'Port-dest:{pinf[9]};Len-data:{pinf[10]};!\n' )
       # Если это TCP-протокол  
       if proto == 6:
         pinf[5] = 'TCP'
@@ -157,38 +162,44 @@ def start_to_listen(s_listen):
                                     , pinf[12], pinf[13], pinf[14], pinf[15]
                                     , pinf[16], pinf[17] ))
         print_packet_inf(Packet_list[-1])
+        if f != -1:
+          f.write( f'No:{pinf[0]};Time:{pinf[1]};Pac-size:{pinf[2]};' +
+                   f'MAC-src:{pinf[3]};MAC-dest:{pinf[4]};Type:{pinf[5]};' + 
+                   f'IP-src:{pinf[6]};IP-dest:{pinf[7]};Port-src:{pinf[8]};' + 
+                   f'Port-dest:{pinf[9]};Len-data:{pinf[10]};Seq:{pinf[11]};' +
+                   f'Ack:{pinf[12]};Fl-ack:{pinf[13]};Fl-psh:{pinf[14]};' +
+                   f'Fl-rst:{pinf[15]};Fl-syn:{pinf[16]};Fl-fin:{pinf[17]};!\n' )
       if keyboard.is_pressed('space'):
         s_listen.close()
         print('Завершение программы...')
         break
 
 
-def write_to_file(f):
-  if Packet_list == []:
-    return False
-  # try:
-  for obj in Packet_list:
-    if obj.protoType == 'UDP':
-      f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
-               f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
-               f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
-               f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};!\n' )
-    else:
-      f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
-               f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
-               f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
-               f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};Seq:{obj.seq};' +
-               f'Ack:{obj.ack};Fl-ack:{obj.fl_ack};Fl-psh:{obj.fl_psh};' +
-               f'Fl-rst:{obj.fl_rst};Fl-syn:{obj.fl_syn};Fl-fin:{obj.fl_fin};!\n' )
-  # except:
-  #   return False
-  return True
+# def write_to_file(f):
+#   if Packet_list == []:
+#     return False
+#   try:
+#     for obj in Packet_list:
+#       if obj.protoType == 'UDP':
+#         f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
+#                  f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
+#                  f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
+#                  f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};!\n' )
+#       else:
+#         f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
+#                  f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
+#                  f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
+#                  f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};Seq:{obj.seq};' +
+#                  f'Ack:{obj.ack};Fl-ack:{obj.fl_ack};Fl-psh:{obj.fl_psh};' +
+#                  f'Fl-rst:{obj.fl_rst};Fl-syn:{obj.fl_syn};Fl-fin:{obj.fl_fin};!\n' )
+#   except:
+#     return False
+#   return True
 
 
 # Считывание с файла и заполнение массива
 # Packet_list объектами класса PacketInf
 def read_from_file(inf):
-  global Packet_list
   a = []
   while True:
     beg = inf.find(':')
@@ -813,8 +824,8 @@ def choose_options(k, strt, fin, step):
 def choose_mode():
   global Packet_list, Object_list, Labels_list
   while True:
-    print('1. Перехват трафика')
-    print('2. Запись данных в файл')
+    print('1. Перехват трафика и запись данных в файл')
+    print('2. Перехват трафика для анализа данных')
     print('3. Считывание с файла данных для анализа трафика')
     print('4. Анализ трафика')
     print('5. Выход')
@@ -823,14 +834,29 @@ def choose_mode():
       Packet_list.clear()
       Object_list.clear()
       Labels_list.clear()
+      print('Введите название файла (например: data.log)')
+      FileName = input()
       try:
-        print('Выберите сетевой интерфейс, нажав соответствующую цифру:')
-        print(socket.if_nameindex())
-        interface = int(input())
-        if 0 > interface or interface > len(socket.if_nameindex()):
-          print('\nОшибка ввода!!!\n')
-          return
-        os.system(f'ip link set {socket.if_indextoname(interface)} promisc on')
+        f = open(FileName, 'a')
+      except:
+        print('\nНекорректное название файла!\n')
+        continue
+      try:
+        s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+      except PermissionError:
+        print('\nНедостаточно прав!')
+        print('Запустите программу от имени администратора!')
+        return
+      else:
+        print('\nНачался процесс захвата трафика...\n')
+        start_to_listen(s_listen, f)
+      f.close()
+      print(f'\nДанные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)\n')
+    elif bl == '2':
+      Packet_list.clear()
+      Object_list.clear()
+      Labels_list.clear()
+      try:
         s_listen = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
       except PermissionError:
         print('\nНедостаточно прав!')
@@ -840,41 +866,6 @@ def choose_mode():
         print('\nНачался процесс захвата трафика...\n')
         start_to_listen(s_listen)
       print(f'\nДанные собраны. Перехвачено: {len(Packet_list)} пакетов(-а)\n')
-
-      print('Хотите записать перехваченный трафик в файл? (да - нажмите 1)')
-      bl1 = input('Ответ: ')
-      if bl1 != '1':
-        print('Введите название файла (например: data.log)')
-        FileName = input()
-        try:
-          f = open(FileName, 'w')
-        except:
-          print('\nНекорректное название файла!\n')
-          continue
-        if write_to_file(f):
-          print(f'\nВ файл {FileName} была успешна записана информация.\n')
-          f.close()
-        else:
-          print(f'\nОшибка записи в файл {FileName}! Возможно нет данных для записи\n')
-          f.close()
-    elif bl == '2':
-      if Packet_list == []:
-        print('\nНет данных! Сначала необходимо получить данные!\n')
-        continue
-      print('Введите название файла (например: data.log)')
-      FileName = input()
-      try:
-        f = open(FileName, 'w')
-      except:
-        print('\nНекорректное название файла!\n')
-        continue
-      if write_to_file(f):
-        print(f'\nВ файл {FileName} была успешна записана информация.\n')
-        f.close()
-      else:
-        print(f'\nОшибка записи в файл {FileName}! Возможно нет данных для записи...\n')
-        f.close()
-        continue
     elif bl == '3':
       Packet_list.clear()
       Object_list.clear()
@@ -946,5 +937,9 @@ def choose_mode():
 
 if __name__ == '__main__':
   print('\nЗапуск программы....\n')
+  print('Выберите сетевой интерфейс, нажав соответствующую цифру:')
+  print(socket.if_nameindex())
+  interface = int(input())
+  os.system(f'ip link set {socket.if_indextoname(interface)} promisc on')
   choose_mode()
 
