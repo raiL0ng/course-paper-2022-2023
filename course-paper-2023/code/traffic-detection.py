@@ -146,21 +146,21 @@ def start_to_listen(s_listen):
         pinf[8], pinf[9], pinf[11], \
         pinf[12], flags, data_tcp = get_tcp_segment(data_ipv4)
         pinf[10] = len(data_tcp)
-        pinf[13] = (flags & 16) >> 4
-        pinf[14] = (flags & 8) >> 3
-        pinf[15] = (flags & 4) >> 2
-        pinf[16] = (flags & 2) >> 1
-        pinf[17] = flags & 1
+        pinf[13] = str((flags & 16) >> 4)
+        pinf[14] = str((flags & 8) >> 3)
+        pinf[15] = str((flags & 4) >> 2)
+        pinf[16] = str((flags & 2) >> 1)
+        pinf[17] = str(flags & 1)
         Packet_list.append(PacketInf( pinf[0], pinf[1], pinf[2], pinf[3]
                                     , pinf[4], pinf[5], pinf[6], pinf[7]
                                     , pinf[8], pinf[9], pinf[10], pinf[11]
                                     , pinf[12], pinf[13], pinf[14], pinf[15]
                                     , pinf[16], pinf[17] ))
         print_packet_inf(Packet_list[-1])
-      if keyboard.is_pressed('space'):
-        s_listen.close()
-        print('Завершение программы...')
-        break
+    if keyboard.is_pressed('space'):
+      s_listen.close()
+      print('Завершение программы...')
+      break
 
 
 def write_to_file(f):
@@ -843,7 +843,7 @@ def choose_mode():
 
       print('Хотите записать перехваченный трафик в файл? (да - нажмите 1)')
       bl1 = input('Ответ: ')
-      if bl1 != '1':
+      if bl1 == '1':
         print('Введите название файла (например: data.log)')
         FileName = input()
         try:
@@ -857,6 +857,7 @@ def choose_mode():
         else:
           print(f'\nОшибка записи в файл {FileName}! Возможно нет данных для записи\n')
           f.close()
+      print('')
     elif bl == '2':
       if Packet_list == []:
         print('\nНет данных! Сначала необходимо получить данные!\n')
