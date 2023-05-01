@@ -11,7 +11,12 @@ FileName = ''
 Packet_list = []
 Object_list = []
 Labels_list = []
+Session_list = []
 x_axisLabels = []
+Phrases_signs = [ 'Нет', 'Установка соединиения (SYN)'
+                , 'Подтверждение установки соединения (SYN-ACK)'
+                , 'Установлена сессия', 'Ведется сессия', 'Обнаружена RDP-сессия!'
+                , 'Сессия закончена', 'Сессия прервана']
 line = '-------------------------'
 
 
@@ -52,6 +57,7 @@ class ExploreObject:
     self.avg_packet_num = None
     self.avg_packet_size = None
 
+    self.commonPorts = None
     self.in_out_rel_data = None
     self.ack_flags_diff_data = None
     self.udp_tcp_rel_data = None
@@ -63,6 +69,37 @@ class ExploreObject:
     self.pkt_size_data_dst = None
     self.adjcIPList = None
     self.adjcPacketList = None
+
+class Session:
+
+  def __init__(self, strtTime, init, target, port):
+    self.fl_syn = True
+    self.fl_fin = False  
+    self.fl_rst = False
+    self.strtTime = strtTime
+    self.finTime = None
+    self.totalTime = None
+    self.initiator = init
+    self.target = target
+    self.port = port
+    self.seq_num = None
+    self.ack_num = None
+
+  def upd_seq_num(self, seq):
+    self.seq_num = int(seq)
+  
+  def upd_ack_num(self, ack):
+    self.ack_num = ack
+  
+  def upd_fl_fin(self, fin):
+    self.fl_fin = True
+    self.finTime = fin
+    self.totalTime = round(self.finTime - self.strtTime, 2)
+
+  def upd_fl_rst(self, fin):
+    self.fl_rst = True
+    self.finTime = fin
+    self.totalTime = round(self.finTime - self.strtTime, 2)
 
 
 # Получение ethernet-кадра
@@ -119,6 +156,7 @@ def format_data(data):
 def start_to_listen(s_listen):
   global Packet_list
   NumPacket = 1
+  curcnt = 1000
   while True:
     # Получение пакетов в виде набора hex-чисел
     raw_data, _ = s_listen.recvfrom(65565)
@@ -128,10 +166,13 @@ def start_to_listen(s_listen):
     # Если это интернет-протокол четвертой версии    
     pinf[4], pinf[3], protocol = get_ethernet_frame(raw_data)
     if protocol == 8:
-      NumPacket += 1
       _, proto, pinf[6], pinf[7], data_ipv4 = get_ipv4_data(raw_data[14:])
+      if NumPacket > curcnt:
+        curcnt += 1000
+        clear_end_sessions() 
       # Если это UDP-протокол  
       if proto == 17:
+        NumPacket += 1
         pinf[5] = 'UDP'
         pinf[8], pinf[9], _, data_udp = get_udp_segment(data_ipv4)
         pinf[10] = len(data_udp)
@@ -139,9 +180,10 @@ def start_to_listen(s_listen):
                                     , pinf[3], pinf[4], pinf[5]
                                     , pinf[6], pinf[7], pinf[8]
                                     , pinf[9], pinf[10]))
-        print_packet_inf(Packet_list[-1])
+        print_packet_inf(Packet_list[-1], [0])
       # Если это TCP-протокол  
       if proto == 6:
+        NumPacket += 1
         pinf[5] = 'TCP'
         pinf[8], pinf[9], pinf[11], \
         pinf[12], flags, data_tcp = get_tcp_segment(data_ipv4)
@@ -156,32 +198,128 @@ def start_to_listen(s_listen):
                                     , pinf[8], pinf[9], pinf[10], pinf[11]
                                     , pinf[12], pinf[13], pinf[14], pinf[15]
                                     , pinf[16], pinf[17] ))
-        print_packet_inf(Packet_list[-1])
+        mes = find_session_location(Packet_list[-1])
+        print_packet_inf(Packet_list[-1], mes)
     if keyboard.is_pressed('space'):
       s_listen.close()
       print('Завершение программы...')
       break
 
+def is_new_session(pkt):
+  for s in Session_list:
+    if (not s.fl_fin and not s.fl_rst) and \
+       (pkt.port_src == s.port or pkt.port_dest == s.port) and \
+       ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
+         (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ):
+      return False
+  return True
+
+def clear_end_sessions():
+  global Session_list
+  n = len(Session_list)
+  ids = []
+  for i in range(n):
+    if Session_list[i].fl_fin or Session_list[i].fl_rst:
+      if Session_list[i].totalTime < 2:
+        ids.append(i)
+  tmp = Session_list.copy()
+  Session_list.clear()
+  for i in range(n):
+    if i in ids:
+      continue  
+    Session_list.append(tmp[i])
+
+
+def find_session_location(pkt):
+  global Session_list
+  if pkt.fl_syn == '1' and pkt.fl_ack == '0':
+    Session_list.append(Session( pkt.timePacket, pkt.ip_src
+                               , pkt.ip_dest, pkt.port_dest))
+    Session_list[-1].upd_seq_num(pkt.seq)
+    return [1]
+  for s in Session_list:
+    if (not s.fl_fin and not s.fl_rst):
+      if pkt.fl_fin == '1' and pkt.fl_ack == '1' and \
+        ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
+          (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
+        (pkt.port_src == s.port or pkt.port_dest == s.port):
+        s.upd_fl_fin(pkt.timePacket)
+        if s.port == '3389':
+            # сюда можно добавить функцию для проверки даты
+          return [5, 6]
+        return [6]
+      if pkt.fl_rst == '1' and pkt.fl_ack == '1' and \
+         ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
+           (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
+         (pkt.port_src == s.port or pkt.port_dest == s.port):
+        s.upd_fl_rst(pkt.timePacket)
+        if s.port == '3389':
+            return [5, 7]
+        return [7]
+      if pkt.fl_syn == '1' and pkt.fl_ack == '1' and s.ack_num == None and \
+         pkt.ack == str(s.seq_num + 1) and pkt.ip_src == s.target and \
+         pkt.ip_dest == s.initiator and pkt.port_src == s.port:
+        s.upd_ack_num(pkt.ack)
+        s.upd_seq_num(pkt.seq)
+        if s.port == '3389':
+          return [2, 5]
+        return [2]
+      elif pkt.fl_syn == '0' and pkt.fl_ack == '1' and pkt.ack == str(s.seq_num + 1) and \
+           pkt.seq == s.ack_num and \
+           pkt.port_dest == s.port and pkt.ip_src == s.initiator and \
+           pkt.ip_dest == s.target:
+        if s.port == '3389':
+          return [3, 5]
+        return [3]
+      if pkt.fl_ack == '1' and \
+         ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
+           (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
+         (pkt.port_src == s.port or pkt.port_dest == s.port):
+        if s.port == '3389':
+          return [3, 5]
+        return [4]
+  return [0]
+
+
+def print_inf_about_sessions():
+  cnt = 1
+  print(f'\nБыло перехвачено {len(Session_list)} сессии(-й)')
+  for s in Session_list:
+    print(f'\nИнформация о сессии #{cnt}:')
+    print(f'Инициатор подключения: {s.initiator}')
+    print(f'Целевое устройство: {s.target}')
+    print(f'Порт подключения: {s.port}')
+    print( f'Время установки соединения:'
+         , time.strftime('%d.%m.%Y г. %H:%M:%S', time.localtime(s.strtTime)) )
+    if s.finTime == None:
+      print(f'Время завершения соединения: нет данных')
+    else:
+      print( f'Время завершения соединения:'
+           , time.strftime('%d.%m.%Y г. %H:%M:%S', time.localtime(s.finTime)))
+      print(f'Общее время соединения: {s.totalTime} сек')
+    cnt += 1
+  print(f'{line}{line}\n')
+
 
 def write_to_file(f):
   if Packet_list == []:
     return False
-  # try:
-  for obj in Packet_list:
-    if obj.protoType == 'UDP':
-      f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
-               f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
-               f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
-               f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};!\n' )
-    else:
-      f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
-               f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
-               f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
-               f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};Seq:{obj.seq};' +
-               f'Ack:{obj.ack};Fl-ack:{obj.fl_ack};Fl-psh:{obj.fl_psh};' +
-               f'Fl-rst:{obj.fl_rst};Fl-syn:{obj.fl_syn};Fl-fin:{obj.fl_fin};!\n' )
-  # except:
-  #   return False
+  try:
+    for obj in Packet_list:
+      if obj.protoType == 'UDP':
+        f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
+                 f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
+                 f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
+                 f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};!\n' )
+      else:
+        f.write( f'No:{obj.numPacket};Time:{obj.timePacket};Pac-size:{obj.packetSize};' +
+                 f'MAC-src:{obj.mac_src};MAC-dest:{obj.mac_dest};Type:{obj.protoType};' + 
+                 f'IP-src:{obj.ip_src};IP-dest:{obj.ip_dest};Port-src:{obj.port_src};' + 
+                 f'Port-dest:{obj.port_dest};Len-data:{obj.len_data};Seq:{obj.seq};' +
+                 f'Ack:{obj.ack};Fl-ack:{obj.fl_ack};Fl-psh:{obj.fl_psh};' +
+                 f'Fl-rst:{obj.fl_rst};Fl-syn:{obj.fl_syn};Fl-fin:{obj.fl_fin};!\n' )
+  except:
+      return False
   return True
 
 
@@ -203,6 +341,7 @@ def read_from_file(inf):
       Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
                                   , a[6], a[7], a[8], a[9], a[10], a[11]
                                   , a[12], a[13], a[14], a[15], a[16], a[17] ))
+      find_session_location(Packet_list[-1])
     elif a[5] == 'UDP':
       Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
                                   , a[6], a[7], a[8], a[9], a[10] ))
@@ -211,7 +350,7 @@ def read_from_file(inf):
     exit(0)
 
 
-def print_packet_inf(obj):
+def print_packet_inf(obj, mes):
   print( f'{line}Пакет No{obj.numPacket}{line}\n'
        , 'Время перехвата: '
        , time.strftime( '%m:%d:%Y %H:%M:%S'
@@ -223,7 +362,10 @@ def print_packet_inf(obj):
        , f'Порт получателя: {obj.port_dest}\n'
        , f'IP-адрес отправителя: {obj.ip_src} ---'
        , f'IP-адрес получателя: {obj.ip_dest}\n' )
-
+  print('Особенности: ', end='')
+  for i in mes:
+    print(Phrases_signs[i], end='; ')
+  print('')
 
 # Получение общей информации о текущей
 # попытке перехвата трафика
@@ -254,10 +396,19 @@ def get_common_data():
   return list(IPList), numPacketsPerSec
 
 
+def get_common_ports(curIP):
+  ports = set()
+  for pkt in Packet_list:
+    if pkt.ip_src == curIP or pkt.ip_dest == curIP:
+      ports.add(pkt.port_src)
+      ports.add(pkt.port_dest)
+  return list(ports)
+
+ 
 # Вывод пар (число, IP-адрес) для
 # предоставления выбора IP-адреса
 # пользователю
-def print_IP_list(IPList, fl=False):
+def print_list_of_pairs(IPList, fl=False):
   num = 0
   cnt = 1
   if fl:
@@ -536,7 +687,7 @@ def get_x_labels(total_time):
 def get_2nd_IP_for_plot(k):
   print('\nИзобразить на графике еще один объект. Выберите ' + \
             'IP-адрес для добавления (нажмите цифру)')
-  print_IP_list(Object_list[k].adjcIPList, True)
+  print_list_of_pairs(Object_list[k].adjcIPList, True)
   scndIP = 'None'
   try:
     pos = int(input())
@@ -595,6 +746,7 @@ def choose_options(k, strt, fin, step):
     bl = input()
     if bl == '1':
       print_adjacent_packets(Object_list[k].adjcPacketList)
+
     elif bl == '2':
       if Object_list[k].in_out_rel_data == None:
         Object_list[k].in_out_rel_data = get_in_out_rel(curIP, strt, fin)
@@ -811,7 +963,7 @@ def choose_options(k, strt, fin, step):
 
 
 def choose_mode():
-  global Packet_list, Object_list, Labels_list
+  global Packet_list, Object_list, Labels_list, Session_list
   while True:
     print('1. Перехват трафика')
     print('2. Запись данных в файл')
@@ -823,6 +975,7 @@ def choose_mode():
       Packet_list.clear()
       Object_list.clear()
       Labels_list.clear()
+      Session_list.clear()
       try:
         print('Выберите сетевой интерфейс, нажав соответствующую цифру:')
         print(socket.if_nameindex())
@@ -880,6 +1033,7 @@ def choose_mode():
       Packet_list.clear()
       Object_list.clear()
       Labels_list.clear()
+      Session_list.clear()
       print('Введите название файла (например: data.log)')
       FileName = input()
       if not Packet_list:
@@ -900,6 +1054,8 @@ def choose_mode():
         print('\nНет данных! Сначала необходимо получить данные!\n')
         continue
       IPList, numPacketsPerSec = get_common_data()
+      clear_end_sessions()
+      print_inf_about_sessions()
       strt = Packet_list[0].timePacket
       fin = Packet_list[-1].timePacket
       strt_time = time.localtime(strt)
@@ -924,15 +1080,22 @@ def choose_mode():
       print('Среднее количество пакетов в секунду: ', round(avgNumPacket, 3))
       print('Средний размер пакетов: ', round(avgSizePacket, 3))
       print('Завершить просмотр (нажмите \"q\" для выхода)')
-      for k in range(0, len(IPList)):
+      for k in range(len(IPList)):
         Object_list.append(ExploreObject(IPList[k]))
-      print_IP_list(IPList)
+        Object_list[-1].commonPorts = get_common_ports(IPList[k])
+      print_list_of_pairs(IPList)
       print(f'\nВыберите цифру (0 - {len(IPList) - 1}) для просмотра IP-адреса:')
       k = input()
       if k == 'q':
         break
       try:
         k = int(k)
+        port = None
+        print_list_of_pairs(Object_list[k].commonPorts, True)
+        print(f'\nВыберите цифру (0 - {len(Object_list[k].commonPorts)}) для просмотра IP-адреса:')
+        k1 = int(input())
+        if k1 != 0:
+          port = Object_list[k].commonPorts[k1 - 1]
       except:
         print('\nНекорректный ввод!\n')
         continue
@@ -948,4 +1111,3 @@ def choose_mode():
 if __name__ == '__main__':
   print('\nЗапуск программы....\n')
   choose_mode()
-
