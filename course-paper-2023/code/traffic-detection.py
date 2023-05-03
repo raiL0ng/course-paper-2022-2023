@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import time, socket, os, struct, keyboard
+import time, socket, os, struct, math, keyboard
 from colorama import init, Back, Fore
 
 init(autoreset=True)
@@ -77,6 +77,8 @@ class Session:
     self.fl_fin = False  
     self.fl_rst = False
     self.strtTime = strtTime
+    self.curTime = strtTime + 5
+    self.curSec = strtTime + 1
     self.finTime = None
     self.totalTime = None
     self.initiator = init
@@ -84,6 +86,27 @@ class Session:
     self.port = port
     self.seq_num = None
     self.ack_num = None
+    self.is_rdp = False
+    self.is_rdpDev = False
+    self.is_rdpPSH = []
+    self.chkrdp = []
+    self.cntTr = 0
+    self.cntpsh = 0
+    self.cntPktTCP = 0
+    self.pshfreq = []  
+    self.pktSize = []
+    self.trafficInit = []
+    self.trafficTarg = []
+    self.cntInitIn = 0
+    self.cntTargIn = 0
+    self.cntInitOut = 0
+    self.cntTargOut = 0
+
+    self.is_rdpIntvl = []
+    self.intervals = []
+    self.prevPktTime = None
+
+
 
   def upd_seq_num(self, seq):
     self.seq_num = int(seq)
@@ -100,6 +123,155 @@ class Session:
     self.fl_rst = True
     self.finTime = fin
     self.totalTime = round(self.finTime - self.strtTime, 2)
+
+  def get_packets_number(self, lst, n):
+    sum = 0
+    for el in lst:
+      sum += el
+    avg = sum / n
+    sum = 0
+    for el in lst:
+      sum += (el - avg) * (el - avg)
+    dev = math.sqrt(sum / n)
+    cnt = 0
+    for el in lst:
+      if (avg - dev * 3) > el or el > (avg + dev * 3):
+        cnt += 1
+    return cnt
+
+
+  def get_rdp_features(self, pkt, isfin=False):
+    n = len(self.pktSize)
+    if n != 0 and (pkt.timePacket > self.curTime or isfin):
+      # Вычисление стандартного отклонения
+      sum = 0
+      for el in self.pktSize:
+        sum += el
+      avg = sum / n
+      sum = 0
+      for el in self.pktSize:
+        sum += (el - avg) * (el - avg)
+      dev = math.sqrt(sum / n)
+      cnt = 0
+      for el in self.pktSize:
+        if abs(avg - dev * 3) > el or el > (avg + dev * 3):
+          cnt += 1
+      if cnt * 1.6 > n:
+        self.chkrdp.append(True)
+      else:
+        self.chkrdp.append(False)
+      self.rdp_check()
+      print('dev', self.is_rdpDev, avg, dev, cnt, len(self.pktSize))
+      self.pktSize.clear()
+      # Вычисление частоты PSH флагов
+      if self.cntPktTCP != 0:
+        self.pshfreq.append(self.cntpsh / self.cntPktTCP)
+      else:
+        self.pshfreq.append(0.0)
+      avg = self.get_average_val()
+      # print(self.port, avg, self.pshfreq[-1])
+      if self.pshfreq[-1] > 0.0 and abs(avg - self.pshfreq[-1]) < 0.2:
+        self.is_rdpPSH.append(True)
+      else:
+        self.is_rdpPSH.append(False)
+      print('psh', avg, self.is_rdpPSH[-1], self.pshfreq[-1])
+      self.cntPktTCP = 0
+      self.cntpsh = 0
+      # Вычисление
+      if len(self.trafficInit) != 0:
+        avg = 0
+        for el in self.trafficInit:
+          avg += el
+        avg = avg / len(self.trafficInit)
+        avg1 = 0
+        for el in self.trafficTarg:
+          avg1 += el
+        avg1 = avg1 / len(self.trafficTarg)
+        print(self.port, avg, avg1, abs(avg - avg1))
+        cnt = self.get_packets_number(self.trafficInit, len(self.trafficInit))
+        cnt1 = self.get_packets_number(self.trafficTarg, len(self.trafficTarg))
+        print(cnt, cnt1, len(self.trafficInit), len(self.trafficTarg))
+        self.trafficInit.clear()
+        self.trafficTarg.clear()
+      # Вычисление распределения интервалов
+      l = len(self.intervals)
+      if l != 0:
+        sum = 0
+        for el in self.intervals:
+          sum += el
+        avg = sum / l
+        for el in self.intervals:
+          sum += (el - avg) * (el - avg)
+        dev = math.sqrt(sum / l)
+        cnt = 0
+        for el in self.intervals:
+          if el > abs(avg - dev * 1/10):
+          # if el < abs(avg - dev * 1/10) or el > abs(avg + dev * 3):
+            cnt += 1
+        # cnt = self.get_packets_number(self.intervals, len(self.intervals))
+        if cnt * 1.6 > l:
+          self.is_rdpIntvl.append(True)
+        else:
+          self.is_rdpIntvl.append(False)
+        print('intervals', self.port, avg, dev, abs(avg - dev * 1/10), 'cnt', cnt, len(self.intervals))
+        print('')
+        self.intervals.clear()
+        self.prevPktTime = None
+      self.curTime += 5
+    self.pktSize.append(pkt.packetSize)
+    if pkt.protoType == 'TCP' and pkt.ip_src == self.target:
+      self.cntPktTCP += 1
+      if pkt.fl_psh == '1':
+        self.cntpsh += 1
+    if self.prevPktTime != None:
+      self.intervals.append(abs(pkt.timePacket - self.prevPktTime))
+      self.prevPktTime = pkt.timePacket
+    else:
+      self.prevPktTime = pkt.timePacket
+
+  def get_in_out_traffic(self, pkt):
+    if pkt.timePacket > self.curSec:
+      if self.cntInitOut != 0:
+        self.trafficInit.append(self.cntInitIn / self.cntInitOut)
+      else:
+        self.trafficInit.append(0.0)
+      if self.cntTargOut != 0:
+        self.trafficTarg.append(self.cntTargIn / self.cntTargOut)
+      else:
+        self.trafficTarg.append(0.0)
+      self.cntInitIn = 0
+      self.cntTargIn = 0
+      self.cntInitOut = 0
+      self.cntTargOut = 0
+      self.curSec += 1
+    if pkt.ip_src == self.initiator:
+      self.cntInitOut += 1
+    if pkt.ip_dest == self.initiator:
+      self.cntInitIn += 1
+    if pkt.ip_src == self.target:
+      self.cntTargOut += 1
+    if pkt.ip_dest == self.target:
+      self.cntTargIn += 1
+
+  def rdp_check(self):
+    if self.cntTr != 0:
+      self.cntTr = (self.cntTr, self.cntTr + 1)[self.chkrdp[-1]]
+    elif len(self.chkrdp) > 2 and self.cntTr == 0:
+      for el in self.chkrdp:
+        if el:
+          self.cntTr += 1
+    if self.cntTr > len(self.chkrdp) - self.cntTr:
+      self.is_rdpDev = True
+    else:
+      self.is_rdpDev = False
+        
+
+  def get_average_val(self):
+    n = len(self.pshfreq)
+    if n >= 3:
+      return (self.pshfreq[n - 3] + self.pshfreq[n - 2] + \
+              self.pshfreq[n - 1] ) / 3
+    return -1
 
 
 # Получение ethernet-кадра
@@ -180,7 +352,8 @@ def start_to_listen(s_listen):
                                     , pinf[3], pinf[4], pinf[5]
                                     , pinf[6], pinf[7], pinf[8]
                                     , pinf[9], pinf[10]))
-        print_packet_inf(Packet_list[-1], [0])
+        mes = find_session_location(Packet_list[-1])
+        print_packet_inf(Packet_list[-1], mes)
       # Если это TCP-протокол  
       if proto == 6:
         NumPacket += 1
@@ -228,14 +401,27 @@ def clear_end_sessions():
     if i in ids:
       continue  
     Session_list.append(tmp[i])
+  for s in Session_list:
+    s.get_rdp_features(Packet_list[-1], True)
 
 
 def find_session_location(pkt):
   global Session_list
+  if pkt.protoType == 'UDP':
+    for s in Session_list:
+      if (not s.fl_fin and not s.fl_rst):
+        if ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
+             (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
+           (pkt.port_src == s.port or pkt.port_dest == s.port):
+          s.get_rdp_features(pkt)
+          if s.port == '3389' or s.is_rdp:
+            return [5]
+    return [0]  
   if pkt.fl_syn == '1' and pkt.fl_ack == '0':
     Session_list.append(Session( pkt.timePacket, pkt.ip_src
-                               , pkt.ip_dest, pkt.port_dest))
+                               , pkt.ip_dest, pkt.port_dest ))
     Session_list[-1].upd_seq_num(pkt.seq)
+    Session_list[-1].get_rdp_features(pkt)
     return [1]
   for s in Session_list:
     if (not s.fl_fin and not s.fl_rst):
@@ -244,6 +430,8 @@ def find_session_location(pkt):
           (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
         (pkt.port_src == s.port or pkt.port_dest == s.port):
         s.upd_fl_fin(pkt.timePacket)
+        s.get_rdp_features(pkt)
+        s.get_in_out_traffic(pkt)
         if s.port == '3389':
             # сюда можно добавить функцию для проверки даты
           return [5, 6]
@@ -253,6 +441,8 @@ def find_session_location(pkt):
            (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
          (pkt.port_src == s.port or pkt.port_dest == s.port):
         s.upd_fl_rst(pkt.timePacket)
+        s.get_rdp_features(pkt)
+        s.get_in_out_traffic(pkt)
         if s.port == '3389':
             return [5, 7]
         return [7]
@@ -261,6 +451,8 @@ def find_session_location(pkt):
          pkt.ip_dest == s.initiator and pkt.port_src == s.port:
         s.upd_ack_num(pkt.ack)
         s.upd_seq_num(pkt.seq)
+        s.get_rdp_features(pkt)
+        s.get_in_out_traffic(pkt)
         if s.port == '3389':
           return [2, 5]
         return [2]
@@ -268,6 +460,8 @@ def find_session_location(pkt):
            pkt.seq == s.ack_num and \
            pkt.port_dest == s.port and pkt.ip_src == s.initiator and \
            pkt.ip_dest == s.target:
+        s.get_rdp_features(pkt)
+        s.get_in_out_traffic(pkt)
         if s.port == '3389':
           return [3, 5]
         return [3]
@@ -275,8 +469,10 @@ def find_session_location(pkt):
          ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
            (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
          (pkt.port_src == s.port or pkt.port_dest == s.port):
+        s.get_rdp_features(pkt)
+        s.get_in_out_traffic(pkt)
         if s.port == '3389':
-          return [3, 5]
+          return [4, 5]
         return [4]
   return [0]
 
@@ -297,6 +493,11 @@ def print_inf_about_sessions():
       print( f'Время завершения соединения:'
            , time.strftime('%d.%m.%Y г. %H:%M:%S', time.localtime(s.finTime)))
       print(f'Общее время соединения: {s.totalTime} сек')
+      if s.is_rdp:
+        print(Back.GREEN + Fore.BLACK + 'Найдена RDP-сессия!!!')
+      # print('\n', len(s.chkrdp), s.chkrdp)
+      print('\n', s.is_rdpDev, len(s.pshfreq), s.pshfreq, s.is_rdpPSH)
+      # print(len(s.intervals), len(s.is_rdpIntvl), s.intervals, s.is_rdpIntvl)
     cnt += 1
   print(f'{line}{line}\n')
 
@@ -336,18 +537,19 @@ def read_from_file(inf):
     else:
       a.append(inf[beg + 1: end])
     inf = inf[end + 1:]
-  try:
-    if a[5] == 'TCP':
-      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                  , a[6], a[7], a[8], a[9], a[10], a[11]
-                                  , a[12], a[13], a[14], a[15], a[16], a[17] ))
-      find_session_location(Packet_list[-1])
-    elif a[5] == 'UDP':
-      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                  , a[6], a[7], a[8], a[9], a[10] ))
-  except:
-    print('Ошибка при считывании файла...')
-    exit(0)
+  # try:
+  if a[5] == 'TCP':
+    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                , a[6], a[7], a[8], a[9], a[10], a[11]
+                                , a[12], a[13], a[14], a[15], a[16], a[17] ))
+    _ = find_session_location(Packet_list[-1])
+  elif a[5] == 'UDP':
+    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                , a[6], a[7], a[8], a[9], a[10] ))
+    _ = find_session_location(Packet_list[-1])
+  # except:
+  #   print('Ошибка при считывании файла...')
+  #   exit(0)
 
 
 def print_packet_inf(obj, mes):
@@ -587,17 +789,15 @@ def get_syn_flags_freq(exploreIP, strt, fin, port):
         break
       if port == None:
         if Packet_list[k].ip_dest == exploreIP and Packet_list[k].protoType == 'TCP':
+          cntTCP += 1
           if Packet_list[k].fl_syn == '1':
             cntSynTCP += 1
-          else:
-            cntTCP += 1
       else:
         if Packet_list[k].port_src == port or Packet_list[k].port_dest == port:
           if Packet_list[k].ip_dest == exploreIP and Packet_list[k].protoType == 'TCP':
+            cntTCP += 1
             if Packet_list[k].fl_syn == '1':
               cntSynTCP += 1
-            else:
-              cntTCP += 1
     curTime += 1
   if cntTCP != 0:
     rel_list.append(cntSynTCP / cntTCP)
@@ -627,17 +827,15 @@ def get_psh_flags_freq(exploreIP, strt, fin, port):
         break
       if port == None:
         if Packet_list[k].ip_dest == exploreIP and Packet_list[k].protoType == 'TCP':
+          cntTCP += 1
           if Packet_list[k].fl_psh == '1':
             cntPshTCP += 1
-          else:
-            cntTCP += 1
       else:
         if Packet_list[k].port_src == port or Packet_list[k].port_dest == port:
           if Packet_list[k].ip_dest == exploreIP and Packet_list[k].protoType == 'TCP':
+            cntTCP += 1
             if Packet_list[k].fl_psh == '1':
               cntPshTCP += 1
-            else:
-              cntTCP += 1
     curTime += 1
   if cntTCP != 0:
     rel_list.append(cntPshTCP / cntTCP)
@@ -1131,18 +1329,23 @@ def choose_mode():
         break
       try:
         k = int(k)
-        port = None
-        print_list_of_pairs(Object_list[k].commonPorts, True)
-        print(f'\nВыберите цифру (0 - {len(Object_list[k].commonPorts)}) для выбора порта:')
-        k1 = int(input())
-        if k1 != 0:
-          port = Object_list[k].commonPorts[k1 - 1]
       except:
         print('\nНекорректный ввод!\n')
         continue
       else:
-        if 0 <= k < len(IPList):
-          choose_options(k, strt, fin, step, port)
+        if 0 <= k and k < len(IPList):
+          port = None
+          print('Список портов которые учавствовали в соединении с данным IP-адресом')
+          print_list_of_pairs(Object_list[k].commonPorts, True)
+          t = len(Object_list[k].commonPorts)
+          print(f'\nВыберите цифру (0 - {t}) для выбора порта:')
+          k1 = int(input())
+          if 0 <= k1 and k1 <= t:
+            if k1 != 0:
+              port = Object_list[k].commonPorts[k1 - 1]
+              choose_options(k, strt, fin, step, port)
+          else:
+            print(f'Введите число в пределах 0 - {t - 1}')
         else:
           print(f'Введите число в пределах 0 - {len(IPList) - 1}')
     elif bl == '5':
@@ -1152,4 +1355,3 @@ def choose_mode():
 if __name__ == '__main__':
   print('\nЗапуск программы....\n')
   choose_mode()
-
