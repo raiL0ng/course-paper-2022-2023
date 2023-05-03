@@ -89,42 +89,44 @@ class Session:
     self.ack_num = None
     self.is_rdp = []
     self.is_rdpDev = False
-    self.is_rdpPSH = False
-    self.is_rdpInOut = []
+    self.pktSize = []
     self.chkrdp = []
     self.cntTr = 0
+    self.is_rdpPSH = False
     self.cntpsh = 0
     self.cntPktTCP = 0
     self.pshfreq = []  
-    self.pktSize = []
+    self.is_rdpInOut = False
     self.trafficInit = []
     self.trafficTarg = []
     self.cntInitIn = 0
     self.cntTargIn = 0
     self.cntInitOut = 0
     self.cntTargOut = 0
-
-    self.is_rdpIntvl = []
+    self.is_rdpIntvl = False
     self.intervals = []
     self.prevPktTime = None
 
 
-
   def upd_seq_num(self, seq):
     self.seq_num = int(seq)
-  
+
+
   def upd_ack_num(self, ack):
     self.ack_num = ack
-  
+
+
   def upd_fl_fin(self, fin):
     self.fl_fin = True
     self.finTime = fin
     self.totalTime = round(self.finTime - self.strtTime, 2)
 
+
   def upd_fl_rst(self, fin):
     self.fl_rst = True
     self.finTime = fin
     self.totalTime = round(self.finTime - self.strtTime, 2)
+
 
   def get_packets_number(self, lst, n):
     sum = 0
@@ -234,6 +236,7 @@ class Session:
     else:
       self.prevPktTime = pkt.timePacket
 
+
   def get_in_out_traffic(self, pkt):
     if pkt.timePacket > self.curSec:
       if self.cntInitOut != 0:
@@ -257,6 +260,7 @@ class Session:
       self.cntTargOut += 1
     if pkt.ip_dest == self.target:
       self.cntTargIn += 1
+
 
   def deviation_check(self):
     if self.cntTr != 0:
@@ -287,12 +291,15 @@ class Session:
         self.is_rdp.append(True)
       else:
         self.is_rdp.append(False)
-  
+
+
   def fin_rdp_check(self):
     cnt = 0
     for el in self.is_rdp:
       if el:
         cnt += 1
+    if len(self.is_rdp) == 0:
+      self.is_rdp.append[-1]
     self.is_rdp[-1] = (False, True)[cnt > len(self.is_rdp) - cnt]
 
 
