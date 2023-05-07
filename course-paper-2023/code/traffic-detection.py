@@ -109,6 +109,13 @@ class Session:
     self.is_rdpIntvl = False
     self.intervals = []
     self.prevPktTime = None
+    self.is_rdpACK = False
+    self.ackdiffInit = []
+    self.ackdiffTarg = []
+    self.cntInitDiffIn = 0
+    self.cntTargDiffIn = 0
+    self.cntInitDiffOut = 0
+    self.cntTargDiffOut = 0
 
 
   def upd_seq_num(self, seq):
@@ -216,6 +223,21 @@ class Session:
         self.prevPktTime = None
       else:
         self.is_rdpIntvl = False
+      # Анализ разности ACK-флагов
+      self.is_rdpACK = True
+      for el in self.ackdiffInit:
+        if el != 0:
+          self.is_rdpACK = False
+      if self.is_rdpACK:
+        for el in self.ackdiffTarg:
+          if el != 0:
+            self.is_rdpACK = False
+      self.cntInitDiffIn = 0
+      self.cntTargDiffIn = 0
+      self.cntInitDiffOut = 0
+      self.cntTargDiffOut = 0
+      self.ackdiffInit.clear()
+      self.ackdiffTarg.clear()
       self.curTime += 5
       self.rdp_check()
       if len(self.is_rdpArr) == 0:
@@ -232,6 +254,13 @@ class Session:
       self.prevPktTime = pkt.timePacket
     else:
       self.prevPktTime = pkt.timePacket
+    if pkt.protoType == 'TCP' and pkt.fl_ack == '1':
+      if pkt.ip_src == self.initiator:
+        self.cntInitDiffOut += 1
+        self.cntTargDiffIn += 1
+      if pkt.ip_src == self.target:
+        self.cntInitDiffIn += 1
+        self.cntTargDiffOut += 1
 
 
   def get_in_out_traffic(self, pkt):
@@ -244,11 +273,24 @@ class Session:
         self.trafficTarg.append(self.cntTargIn / self.cntTargOut)
       else:
         self.trafficTarg.append(0.0)
+      self.ackdiffInit.append(abs(self.cntInitDiffOut - self.cntInitDiffIn))
+      self.ackdiffTarg.append(abs(self.cntTargDiffOut - self.cntTargDiffIn))
       self.cntInitIn = 0
       self.cntTargIn = 0
       self.cntInitOut = 0
       self.cntTargOut = 0
+      self.cntInitDiffIn = 0
+      self.cntTargDiffIn = 0
+      self.cntInitDiffOut = 0
+      self.cntTargDiffOut = 0
       self.curSec += 1
+    if pkt.protoType == 'TCP' and pkt.fl_ack == '1':
+      if pkt.ip_src == self.initiator:
+        self.cntInitDiffOut += 1
+        self.cntTargDiffIn += 1
+      if pkt.ip_src == self.target:
+        self.cntInitDiffIn += 1
+        self.cntTargDiffOut += 1
     if pkt.ip_src == self.initiator:
       self.cntInitOut += 1
     if pkt.ip_dest == self.initiator:
@@ -284,7 +326,7 @@ class Session:
     if self.port == '3389':
       self.is_rdpArr.append(True)
     else:
-      if (self.is_rdpInOut and self.is_rdpIntvl):
+      if (self.is_rdpACK and self.is_rdpInOut and self.is_rdpIntvl):
         self.is_rdpArr.append(True)
       else:
         if self.is_rdpDev:
