@@ -245,7 +245,7 @@ class Session:
       else:
         self.is_rdp = (False, True)[self.is_rdpArr[-1]]
     self.pktSize.append(pkt.packetSize)
-    if pkt.protoType == 'TCP' and pkt.ip_src == self.target:
+    if pkt.protoType == 'TCP' and pkt.ip_src == self.initiator:
       self.cntPktTCP += 1
       if pkt.fl_psh == '1':
         self.cntpsh += 1
@@ -569,8 +569,8 @@ def print_inf_about_sessions():
       print( f'Время завершения соединения:'
            , time.strftime('%d.%m.%Y г. %H:%M:%S', time.localtime(s.finTime)))
       print(f'Общее время соединения: {s.totalTime} сек')
-      if s.is_rdp:
-        print(Back.GREEN + Fore.BLACK + 'Найдена RDP-сессия!!!')
+    if s.is_rdp:
+      print(Back.GREEN + Fore.BLACK + 'Найдена RDP-сессия!!!')
     cnt += 1
   print(f'{line}{line}\n')
 
@@ -636,10 +636,12 @@ def print_packet_inf(obj, mes):
        , f'Протокол: {obj.protoType}\n'
        , f'MAC-адрес отправителя: {obj.mac_src}\n'
        , f'MAC-адрес получателя: {obj.mac_dest}\n'
-       , f'Порт отправителя: {obj.port_src} ---'
-       , f'Порт получателя: {obj.port_dest}\n'
-       , f'IP-адрес отправителя: {obj.ip_src} ---'
-       , f'IP-адрес получателя: {obj.ip_dest}\n' )
+       , f'Отправитель: {obj.ip_src}:{obj.port_src}\n'
+       , f'Получатель: {obj.ip_dest}:{obj.port_dest}')
+  if obj.protoType == 'TCP':
+    print( f' Порядковый номер: {obj.seq}; Номер подтверждения: {obj.ack}\n' +
+           f' SYN:{obj.fl_syn}; ACK:{obj.fl_ack}; PSH:{obj.fl_psh}; ' +
+           f'RST:{obj.fl_rst}; FIN:{obj.fl_fin}\n')
   print('Признаки: ', end='')
   for i in mes:
     print(Phrases_signs[i], end='; ')
@@ -712,17 +714,31 @@ def print_adjacent_packets(adjcPacketLIst):
     if cnt % 2 == 1:
       print( f'Номер пакета: {p.numPacket};', f' Время: {t};'
            , f' Размер: {p.packetSize};', f' MAC-адрес отправителя: {p.mac_src};'
-           , f' MAC-адрес получателя: {p.mac_dest};'
-           , f' IP-адрес отправителя: {p.ip_src};', f' IP-адрес получателя: {p.ip_dest};'
-           , f' Протокол: {p.protoType};', f' Порт отправителя: {p.port_src};'
-           , f' Порт получателя: {p.port_dest};', f' Количество байт: {p.len_data};' )
+           , f' MAC-адрес получателя: {p.mac_dest};', f' Протокол: {p.protoType};'
+           , f' Отправитель: {p.ip_src}:{p.port_src};'
+           , f' Получатель: {p.ip_dest}:{p.port_dest};'
+           , f' Размер поля данных: {p.len_data};', end='' )
+      if p.protoType == 'TCP':
+          print( f' Порядковый номер: {p.seq}; Номер подтверждения: {p.ack};' +
+                 f' SYN:{p.fl_syn}; ACK:{p.fl_ack}; PSH:{p.fl_psh}; ' +
+                 f'RST:{p.fl_rst}; FIN:{p.fl_fin};')
+      else:
+        print('')
     else:
-      print( Back.CYAN + Fore.BLACK + f' Номер пакета: {p.numPacket};' + f' Время: {t};' +
+      print( Back.CYAN + Fore.BLACK + f'Номер пакета: {p.numPacket};' + f' Время: {t};' +
              f' Размер: {p.packetSize};' + f' MAC-адрес отправителя: {p.mac_src};' +
-             f' MAC-адрес получателя: {p.mac_dest};' +
-             f' IP-адрес отправителя: {p.ip_src};' + f' IP-адрес получателя: {p.ip_dest};' +
-             f' Протокол: {p.protoType};' + f' Порт отправителя: {p.port_src};' +
-             f' Порт получателя: {p.port_dest};' + f' Количество байт: {p.len_data};' )
+             f' MAC-адрес получателя: {p.mac_dest};' + 
+             f' Отправитель: {p.ip_src}:{p.port_src};' +
+             f' Получатель: {p.ip_dest}:{p.port_dest};' +
+             f' Протокол: {p.protoType};' +
+             f' Размер поля данных: {p.len_data};', end='' )
+      if p.protoType == 'TCP':
+        print( Back.CYAN + Fore.BLACK + f' Порядковый номер: {p.seq};' +
+               f' Номер подтверждения: {p.ack};' +
+               f' SYN:{p.fl_syn}; ACK:{p.fl_ack}; PSH:{p.fl_psh};' +
+               f' RST:{p.fl_rst}; FIN:{p.fl_fin};')
+      else:
+        print('')
     cnt += 1
 
 
