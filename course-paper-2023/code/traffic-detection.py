@@ -15,7 +15,7 @@ Session_list = []
 x_axisLabels = []
 Phrases_signs = [ 'Нет', 'Установка соединиения (SYN)'
                 , 'Подтверждение установки соединения (SYN-ACK)'
-                , 'Установлена сессия', 'Ведется сессия', 'Обнаружена RDP-сессия!'
+                , 'Установлена сессия', 'Ведется сессия', 'Подозрение на RDP-сессию!'
                 , 'Сессия закончена', 'Сессия прервана'
                 , 'Передача клавиатурных и мышинных событий']
 findRDP = False
@@ -91,10 +91,10 @@ class Session:
     self.ack_num = None
     self.is_rdp = False
     self.is_rdpArr = []
+    self.cntTr = 0
+    self.prob = 0
     self.is_rdpDev = False
     self.pktSize = []
-    self.chkrdp = []
-    self.cntTr = 0
     self.is_rdpPSH = False
     self.cntpsh = 0
     self.cntPktTCP = 0
@@ -109,13 +109,6 @@ class Session:
     self.is_rdpIntvl = False
     self.intervals = []
     self.prevPktTime = None
-    self.is_rdpACK = False
-    self.ackdiffInit = []
-    self.ackdiffTarg = []
-    self.cntInitDiffIn = 0
-    self.cntTargDiffIn = 0
-    self.cntInitDiffOut = 0
-    self.cntTargDiffOut = 0
 
 
   def upd_seq_num(self, seq):
@@ -155,10 +148,9 @@ class Session:
         if abs(avg - dev * 3) > el or el > (avg + dev * 3):
           cnt += 1
       if cnt * 1.6 > n:
-        self.chkrdp.append(True)
+        self.is_rdpDev = True
       else:
-        self.chkrdp.append(False)
-      self.deviation_check()
+        self.is_rdpDev = False
       self.pktSize.clear()
       # Вычисление частоты PSH флагов
       if self.cntPktTCP != 0:
@@ -187,7 +179,7 @@ class Session:
         if (in_len > 3 and out_len > 3) and \
            ((1 < avg and avg <= 2.0 and 0.5 <= avg1 and avg1 < 1) or \
             (0.5 <= avg and avg < 1 and 1 < avg1 and avg1 <= 2.0)) and \
-           (abs(avg - avg1) > 0.3 and abs(avg - avg1) < 1.8):
+           (abs(avg - avg1) > 0.2 and abs(avg - avg1) < 1.8):
           self.is_rdpInOut = True
         else:
           self.is_rdpInOut = False
@@ -211,9 +203,9 @@ class Session:
           sum += (el - avg) * (el - avg)
         dev = math.sqrt(sum / l)
         cnt = 0
-        if l > 30:
+        if l > 40:
           for el in self.intervals:
-            if el > abs(avg - dev / 3.5):
+            if el > abs(avg + dev / 1.5) or el < abs(avg - dev / 1.5):
               cnt += 1
         if cnt * 2 > l:
           self.is_rdpIntvl = True
@@ -223,27 +215,12 @@ class Session:
         self.prevPktTime = None
       else:
         self.is_rdpIntvl = False
-      # Анализ разности ACK-флагов
-      self.is_rdpACK = True
-      for el in self.ackdiffInit:
-        if el != 0:
-          self.is_rdpACK = False
-      if self.is_rdpACK:
-        for el in self.ackdiffTarg:
-          if el != 0:
-            self.is_rdpACK = False
-      self.cntInitDiffIn = 0
-      self.cntTargDiffIn = 0
-      self.cntInitDiffOut = 0
-      self.cntTargDiffOut = 0
-      self.ackdiffInit.clear()
-      self.ackdiffTarg.clear()
       self.curTime += 5
       self.rdp_check()
       if len(self.is_rdpArr) == 0:
         self.is_rdp = False
       else:
-        self.is_rdp = (False, True)[self.is_rdpArr[-1]]
+        self.is_rdp = self.is_rdpArr[-1]
     self.pktSize.append(pkt.packetSize)
     if pkt.protoType == 'TCP' and pkt.ip_src == self.initiator:
       self.cntPktTCP += 1
@@ -254,13 +231,6 @@ class Session:
       self.prevPktTime = pkt.timePacket
     else:
       self.prevPktTime = pkt.timePacket
-    if pkt.protoType == 'TCP' and pkt.fl_ack == '1':
-      if pkt.ip_src == self.initiator:
-        self.cntInitDiffOut += 1
-        self.cntTargDiffIn += 1
-      if pkt.ip_src == self.target:
-        self.cntInitDiffIn += 1
-        self.cntTargDiffOut += 1
 
 
   def get_in_out_traffic(self, pkt):
@@ -273,24 +243,11 @@ class Session:
         self.trafficTarg.append(self.cntTargIn / self.cntTargOut)
       else:
         self.trafficTarg.append(0.0)
-      self.ackdiffInit.append(abs(self.cntInitDiffOut - self.cntInitDiffIn))
-      self.ackdiffTarg.append(abs(self.cntTargDiffOut - self.cntTargDiffIn))
       self.cntInitIn = 0
       self.cntTargIn = 0
       self.cntInitOut = 0
       self.cntTargOut = 0
-      self.cntInitDiffIn = 0
-      self.cntTargDiffIn = 0
-      self.cntInitDiffOut = 0
-      self.cntTargDiffOut = 0
       self.curSec += 1
-    if pkt.protoType == 'TCP' and pkt.fl_ack == '1':
-      if pkt.ip_src == self.initiator:
-        self.cntInitDiffOut += 1
-        self.cntTargDiffIn += 1
-      if pkt.ip_src == self.target:
-        self.cntInitDiffIn += 1
-        self.cntTargDiffOut += 1
     if pkt.ip_src == self.initiator:
       self.cntInitOut += 1
     if pkt.ip_dest == self.initiator:
@@ -301,18 +258,13 @@ class Session:
       self.cntTargIn += 1
 
 
-  def deviation_check(self):
-    if self.cntTr != 0:
-      self.cntTr = (self.cntTr, self.cntTr + 1)[self.chkrdp[-1]]
-    elif len(self.chkrdp) > 2 and self.cntTr == 0:
-      for el in self.chkrdp:
-        if el:
-          self.cntTr += 1
-    if self.cntTr > len(self.chkrdp) - self.cntTr:
-      self.is_rdpDev = True
+  def rdpArr_check(self):
+    l = len(self.is_rdpArr)
+    if l > 2:
+      return self.cntTr > l - self.cntTr
     else:
-      self.is_rdpDev = False
-        
+      return False
+    
 
   def get_average_val(self):
     n = len(self.pshfreq)
@@ -325,14 +277,23 @@ class Session:
   def rdp_check(self):
     if self.port == '3389':
       self.is_rdpArr.append(True)
+      self.cntTr += 1
+      self.prob = 100
     else:
-      if (self.is_rdpACK and self.is_rdpInOut and self.is_rdpIntvl):
+      if (self.is_rdpInOut and self.is_rdpIntvl):
         self.is_rdpArr.append(True)
+        self.cntTr += 1
       else:
-        if self.is_rdpDev:
-          self.is_rdpArr.append(True)
+        if (self.is_rdpInOut or self.is_rdpIntvl or self.rdpArr_check()):
+          if (self.is_rdpDev):
+            self.is_rdpArr.append(True)
+            self.cntTr += 1
+          else:
+            self.is_rdpArr.append(False)
         else:
           self.is_rdpArr.append(False)
+      if len(self.is_rdpArr) > 4:
+        self.prob = round((self.cntTr / len(self.is_rdpArr)) * 100)
 
 
   def fin_rdp_check(self):
@@ -421,8 +382,8 @@ def start_to_listen(s_listen):
                                     , pinf[3], pinf[4], pinf[5]
                                     , pinf[6], pinf[7], pinf[8]
                                     , pinf[9], pinf[10]))
-        mes = find_session_location(Packet_list[-1])
-        print_packet_inf(Packet_list[-1], mes)
+        mes_prob = find_session_location(Packet_list[-1])
+        print_packet_inf(Packet_list[-1], mes_prob)
       # Если это TCP-протокол  
       if proto == 6:
         NumPacket += 1
@@ -440,8 +401,8 @@ def start_to_listen(s_listen):
                                     , pinf[8], pinf[9], pinf[10], pinf[11]
                                     , pinf[12], pinf[13], pinf[14], pinf[15]
                                     , pinf[16], pinf[17] ))
-        mes = find_session_location(Packet_list[-1])
-        print_packet_inf(Packet_list[-1], mes)
+        mes_prob = find_session_location(Packet_list[-1])
+        print_packet_inf(Packet_list[-1], mes_prob)
     if keyboard.is_pressed('space'):
       s_listen.close()
       print('\nЗавершение программы...\n')
@@ -476,20 +437,20 @@ def find_session_location(pkt):
         if ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
              (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
            (pkt.port_src == s.port or pkt.port_dest == s.port):
-          s.get_rdp_features(pkt)
           s.get_in_out_traffic(pkt)
+          s.get_rdp_features(pkt)
           if s.is_rdp:
             if s.is_rdpPSH:
-              return [4, 5, 8]
-            return [4, 5]
-    return [0]  
+              return ([4, 5, 8], s.prob)
+            return ([4, 5], s.prob)
+    return ([0], 0)  
   if pkt.fl_syn == '1' and pkt.fl_ack == '0':
     Session_list.append(Session( pkt.timePacket, pkt.ip_src
                                , pkt.ip_dest, pkt.port_dest ))
     Session_list[-1].upd_seq_num(pkt.seq)
     Session_list[-1].get_in_out_traffic(pkt)
     Session_list[-1].get_rdp_features(pkt)
-    return [1]
+    return ([1], Session_list[-1].prob)
   for s in Session_list:
     if (not s.fl_fin and not s.fl_rst):
       if pkt.fl_fin == '1' and pkt.fl_ack == '1' and \
@@ -501,9 +462,9 @@ def find_session_location(pkt):
         s.get_rdp_features(pkt)
         if s.is_rdp:
           if s.is_rdpPSH:
-            return [5, 6, 8]
-          return [5, 6]
-        return [6]
+            return ([5, 6, 8], s.prob)
+          return ([5, 6], s.prob)
+        return ([6], s.prob)
       if pkt.fl_rst == '1' and pkt.fl_ack == '1' and \
          ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
            (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
@@ -513,9 +474,9 @@ def find_session_location(pkt):
         s.get_rdp_features(pkt)
         if s.is_rdp:
           if s.is_rdpPSH:
-            return [5, 7, 8]
-          return [5, 7]
-        return [7]
+            return ([5, 7, 8], s.prob)
+          return ([5, 7], s.prob)
+        return ([7], s.prob)
       if pkt.fl_syn == '1' and pkt.fl_ack == '1' and s.ack_num == None and \
          pkt.ack == str(s.seq_num + 1) and pkt.ip_src == s.target and \
          pkt.ip_dest == s.initiator and pkt.port_src == s.port:
@@ -525,9 +486,9 @@ def find_session_location(pkt):
         s.get_rdp_features(pkt)
         if s.is_rdp:
           if s.is_rdpPSH:
-            return [2, 5, 8]
-          return [2, 5]
-        return [2]
+            return ([2, 5, 8], s.prob)
+          return ([2, 5], s.prob)
+        return ([2], s.prob)
       elif pkt.fl_syn == '0' and pkt.fl_ack == '1' and pkt.ack == str(s.seq_num + 1) and \
            pkt.seq == s.ack_num and \
            pkt.port_dest == s.port and pkt.ip_src == s.initiator and \
@@ -536,9 +497,9 @@ def find_session_location(pkt):
         s.get_rdp_features(pkt)
         if s.is_rdp:
           if s.is_rdpPSH:
-            return [3, 5, 8]
-          return [3, 5]
-        return [3]
+            return ([3, 5, 8], s.prob)
+          return ([3, 5], s.prob)
+        return ([3], s.prob)
       if pkt.fl_ack == '1' and \
          ( (pkt.ip_src == s.initiator and pkt.ip_dest == s.target) or \
            (pkt.ip_src == s.target and pkt.ip_dest == s.initiator) ) and \
@@ -547,10 +508,10 @@ def find_session_location(pkt):
         s.get_rdp_features(pkt)
         if s.is_rdp:
           if s.is_rdpPSH:
-            return [4, 5, 8]
-          return [4, 5]
-        return [4]
-  return [0]
+            return ([4, 5, 8], s.prob)
+          return ([4, 5], s.prob)
+        return ([4], s.prob)
+  return ([0], 0)
 
 
 def print_inf_about_sessions():
@@ -569,8 +530,8 @@ def print_inf_about_sessions():
       print( f'Время завершения соединения:'
            , time.strftime('%d.%m.%Y г. %H:%M:%S', time.localtime(s.finTime)))
       print(f'Общее время соединения: {s.totalTime} сек')
-    if s.is_rdp:
-      print(Back.GREEN + Fore.BLACK + 'Найдена RDP-сессия!!!')
+    if s.is_rdp and s.prob > 50:
+      print(Back.GREEN + Fore.BLACK + f'Найдена RDP-сессия с вероятностью {s.prob}%!!!')
     cnt += 1
   print(f'{line}{line}\n')
 
@@ -625,9 +586,9 @@ def read_from_file(inf):
   #   exit(0)
 
 
-def print_packet_inf(obj, mes):
+def print_packet_inf(obj, mes_prob):
   if findRDP:
-    if 5 not in mes:
+    if 5 not in mes_prob[0] or mes_prob[1] <= 50:
       return
   print( f'{line}Пакет No{obj.numPacket}{line}\n'
        , 'Время перехвата: '
@@ -643,9 +604,9 @@ def print_packet_inf(obj, mes):
            f' SYN:{obj.fl_syn}; ACK:{obj.fl_ack}; PSH:{obj.fl_psh}; ' +
            f'RST:{obj.fl_rst}; FIN:{obj.fl_fin}\n')
   print('Признаки: ', end='')
-  for i in mes:
+  for i in mes_prob[0]:
     print(Phrases_signs[i], end='; ')
-  print('')
+  print(f'\nВероятность RDP-сессии {mes_prob[1]}%')
 
 # Получение общей информации о текущей
 # попытке перехвата трафика
