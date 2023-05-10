@@ -145,7 +145,7 @@ class Session:
       dev = math.sqrt(sum / n)
       cnt = 0
       for el in self.pktSize:
-        if abs(avg - dev * 3) > el or el > (avg + dev * 3):
+        if abs(avg - dev * 4) > el or el > (avg + dev * 4):
           cnt += 1
       if cnt * 1.6 > n:
         self.is_rdpDev = True
@@ -205,7 +205,7 @@ class Session:
         cnt = 0
         if l > 40:
           for el in self.intervals:
-            if el > abs(avg + dev / 1.5) or el < abs(avg - dev / 1.5):
+            if el > abs(avg + dev / 1.8) or el < abs(avg - dev / 1.8):
               cnt += 1
         if cnt * 2 > l:
           self.is_rdpIntvl = True
@@ -280,12 +280,14 @@ class Session:
       self.cntTr += 1
       self.prob = 100
     else:
-      if (self.is_rdpInOut and self.is_rdpIntvl):
+      if (self.is_rdpInOut and self.is_rdpIntvl) or \
+         (self.is_rdpInOut and self.is_rdpPSH and self.is_rdpDev):
         self.is_rdpArr.append(True)
         self.cntTr += 1
       else:
-        if (self.is_rdpInOut or self.is_rdpIntvl or self.rdpArr_check()):
-          if (self.is_rdpDev):
+        if (self.is_rdpInOut or self.is_rdpIntvl):
+          if (self.is_rdpDev and self.rdpArr_check()) or \
+             (not self.is_rdpDev and self.rdpArr_check()):
             self.is_rdpArr.append(True)
             self.cntTr += 1
           else:

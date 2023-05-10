@@ -93,20 +93,20 @@ class Session:
     self.is_rdpArr = []
     self.cntTr = 0
     self.prob = 0
-    self.is_rdpDev = False
+    self.is_rdpDev = []
     self.pktSize = []
-    self.is_rdpPSH = False
+    self.is_rdpPSH = []
     self.cntpsh = 0
     self.cntPktTCP = 0
     self.pshfreq = []  
-    self.is_rdpInOut = False
+    self.is_rdpInOut = []
     self.trafficInit = []
     self.trafficTarg = []
     self.cntInitIn = 0
     self.cntTargIn = 0
     self.cntInitOut = 0
     self.cntTargOut = 0
-    self.is_rdpIntvl = False
+    self.is_rdpIntvl = []
     self.intervals = []
     self.prevPktTime = None
 
@@ -145,12 +145,12 @@ class Session:
       dev = math.sqrt(sum / n)
       cnt = 0
       for el in self.pktSize:
-        if abs(avg - dev * 3) > el or el > (avg + dev * 3):
+        if abs(avg - dev * 4) > el or el > (avg + dev * 4):
           cnt += 1
       if cnt * 1.6 > n:
-        self.is_rdpDev = True
+        self.is_rdpDev.append(True)
       else:
-        self.is_rdpDev = False
+        self.is_rdpDev.append(False)
       self.pktSize.clear()
       # Вычисление частоты PSH флагов
       if self.cntPktTCP != 0:
@@ -159,9 +159,9 @@ class Session:
         self.pshfreq.append(0.0)
       avg = self.get_average_val()
       if self.pshfreq[-1] > 0.0 and abs(avg - self.pshfreq[-1]) < 0.3:
-        self.is_rdpPSH = True
+        self.is_rdpPSH.append(True)
       else:
-        self.is_rdpPSH = False
+        self.is_rdpPSH.append(False)
       self.cntPktTCP = 0
       self.cntpsh = 0
       # Вычисление отношения входящего трафика на исходящий
@@ -180,9 +180,9 @@ class Session:
            ((1 < avg and avg <= 2.0 and 0.5 <= avg1 and avg1 < 1) or \
             (0.5 <= avg and avg < 1 and 1 < avg1 and avg1 <= 2.0)) and \
            (abs(avg - avg1) > 0.2 and abs(avg - avg1) < 1.8):
-          self.is_rdpInOut = True
+          self.is_rdpInOut.append(True)
         else:
-          self.is_rdpInOut = False
+          self.is_rdpInOut.append(False)
         self.cntInitIn = 0
         self.cntInitOut = 0
         self.cntTargIn = 0
@@ -190,7 +190,7 @@ class Session:
         self.trafficInit.clear()
         self.trafficTarg.clear()
       else:
-        self.is_rdpInOut = False
+        self.is_rdpInOut.append(False)
       # Вычисление распределения интервалов
       l = len(self.intervals)
       if l != 0:
@@ -203,18 +203,18 @@ class Session:
           sum += (el - avg) * (el - avg)
         dev = math.sqrt(sum / l)
         cnt = 0
-        if l > 40:
+        if l > 30:
           for el in self.intervals:
-            if el > abs(avg + dev / 1.5) or el < abs(avg - dev / 1.5):
+            if el > abs(avg + dev / 1.8) or el < abs(avg - dev / 1.8):
               cnt += 1
         if cnt * 2 > l:
-          self.is_rdpIntvl = True
+          self.is_rdpIntvl.append(True)
         else:
-          self.is_rdpIntvl = False
+          self.is_rdpIntvl.append(False)
         self.intervals.clear()
         self.prevPktTime = None
       else:
-        self.is_rdpIntvl = False
+        self.is_rdpIntvl.append(False)
       self.curTime += 5
       self.rdp_check()
       if len(self.is_rdpArr) == 0:
@@ -280,12 +280,14 @@ class Session:
       self.cntTr += 1
       self.prob = 100
     else:
-      if (self.is_rdpInOut and self.is_rdpIntvl):
+      if (self.is_rdpInOut[-1] and self.is_rdpIntvl[-1]) or \
+        (self.is_rdpInOut[-1] and self.is_rdpPSH[-1] and self.is_rdpDev[-1]):
         self.is_rdpArr.append(True)
         self.cntTr += 1
       else:
-        if (self.is_rdpInOut or self.is_rdpIntvl or self.rdpArr_check()):
-          if (self.is_rdpDev):
+        if (self.is_rdpInOut[-1] or self.is_rdpIntvl[-1]):
+          if (self.is_rdpDev[-1] and self.rdpArr_check()) or \
+            (not self.is_rdpDev[-1] and self.rdpArr_check()):
             self.is_rdpArr.append(True)
             self.cntTr += 1
           else:
@@ -440,7 +442,7 @@ def find_session_location(pkt):
           s.get_in_out_traffic(pkt)
           s.get_rdp_features(pkt)
           if s.is_rdp:
-            if s.is_rdpPSH:
+            if s.is_rdpPSH[-1]:
               return ([4, 5, 8], s.prob)
             return ([4, 5], s.prob)
     return ([0], 0)  
@@ -461,7 +463,7 @@ def find_session_location(pkt):
         s.get_in_out_traffic(pkt)
         s.get_rdp_features(pkt)
         if s.is_rdp:
-          if s.is_rdpPSH:
+          if s.is_rdpPSH[-1]:
             return ([5, 6, 8], s.prob)
           return ([5, 6], s.prob)
         return ([6], s.prob)
@@ -473,7 +475,7 @@ def find_session_location(pkt):
         s.get_in_out_traffic(pkt)
         s.get_rdp_features(pkt)
         if s.is_rdp:
-          if s.is_rdpPSH:
+          if s.is_rdpPSH[-1]:
             return ([5, 7, 8], s.prob)
           return ([5, 7], s.prob)
         return ([7], s.prob)
@@ -485,7 +487,7 @@ def find_session_location(pkt):
         s.get_in_out_traffic(pkt)
         s.get_rdp_features(pkt)
         if s.is_rdp:
-          if s.is_rdpPSH:
+          if s.is_rdpPSH[-1]:
             return ([2, 5, 8], s.prob)
           return ([2, 5], s.prob)
         return ([2], s.prob)
@@ -496,7 +498,7 @@ def find_session_location(pkt):
         s.get_in_out_traffic(pkt)
         s.get_rdp_features(pkt)
         if s.is_rdp:
-          if s.is_rdpPSH:
+          if s.is_rdpPSH[-1]:
             return ([3, 5, 8], s.prob)
           return ([3, 5], s.prob)
         return ([3], s.prob)
@@ -507,7 +509,7 @@ def find_session_location(pkt):
         s.get_in_out_traffic(pkt)
         s.get_rdp_features(pkt)
         if s.is_rdp:
-          if s.is_rdpPSH:
+          if s.is_rdpPSH[-1]:
             return ([4, 5, 8], s.prob)
           return ([4, 5], s.prob)
         return ([4], s.prob)
@@ -532,6 +534,11 @@ def print_inf_about_sessions():
       print(f'Общее время соединения: {s.totalTime} сек')
     if s.is_rdp and s.prob > 50:
       print(Back.GREEN + Fore.BLACK + f'Найдена RDP-сессия с вероятностью {s.prob}%!!!')
+    print('\n', len(s.is_rdpDev), s.is_rdpDev)
+    print('PSH', len(s.is_rdpPSH), s.is_rdpPSH)
+    print('INout', len(s.is_rdpInOut), s.is_rdpInOut)
+    print('Itvl', len(s.is_rdpIntvl), s.is_rdpIntvl)
+    print(s.is_rdp, len(s.is_rdpArr), s.is_rdpArr)
     cnt += 1
   print(f'{line}{line}\n')
 
