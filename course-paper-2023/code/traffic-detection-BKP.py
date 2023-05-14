@@ -211,6 +211,7 @@ class Session:
           self.is_rdpIntvl.append(True)
         else:
           self.is_rdpIntvl.append(False)
+        print('INTVL', self.port, avg, dev, self.is_rdpIntvl[-1])
         self.intervals.clear()
         self.prevPktTime = None
       else:
