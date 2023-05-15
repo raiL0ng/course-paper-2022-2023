@@ -282,6 +282,7 @@ class Session:
     elif self.prob > 70:
       self.is_rdpArr.append(True)
       self.cntTr += 1
+      self.prob = round((self.cntTr / len(self.is_rdpArr)) * 100)
     else:
       if (self.is_rdpInOut and self.is_rdpIntvl) or \
          (self.is_rdpInOut and self.is_rdpPSH and self.is_rdpDev):
