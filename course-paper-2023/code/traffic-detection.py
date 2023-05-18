@@ -73,6 +73,7 @@ class ExploreObject:
     self.adjcPacketList = None
 
 
+# Класс, содержащий информацию о каждой активной сессии
 class Session:
 
   def __init__(self, strtTime, init, target, port):
@@ -111,26 +112,31 @@ class Session:
     self.prevPktTime = None
 
 
+# Обновление значения порядкового номера
   def upd_seq_num(self, seq):
     self.seq_num = int(seq)
 
 
+# Обновление значения номера подтверждения
   def upd_ack_num(self, ack):
     self.ack_num = ack
 
 
+# Обновление значения флага FIN
   def upd_fl_fin(self, fin):
     self.fl_fin = True
     self.finTime = fin
     self.totalTime = round(self.finTime - self.strtTime, 2)
 
 
+# Обновление значения флага RST
   def upd_fl_rst(self, fin):
     self.fl_rst = True
     self.finTime = fin
     self.totalTime = round(self.finTime - self.strtTime, 2)
 
 
+# Вычисление распределений для выявления признаков RDP 
   def get_rdp_features(self, pkt, isfin=False):
     n = len(self.pktSize)
     if n != 0 and (pkt.timePacket > self.curTime or isfin):
@@ -233,6 +239,7 @@ class Session:
       self.prevPktTime = pkt.timePacket
 
 
+# Вычисление входящего и исходящего трафика за единицу времени
   def get_in_out_traffic(self, pkt):
     if pkt.timePacket > self.curSec:
       if self.cntInitOut != 0:
@@ -258,6 +265,7 @@ class Session:
       self.cntTargIn += 1
 
 
+# Анализ значений списка rdpArr
   def rdpArr_check(self):
     l = len(self.is_rdpArr)
     if l > 2:
@@ -266,6 +274,7 @@ class Session:
       return False
     
 
+# Нахождение среднего значения частот PSH-флагов
   def get_average_val(self):
     n = len(self.pshfreq)
     if n >= 4:
@@ -274,6 +283,8 @@ class Session:
     return -10
 
 
+# Осуществление проверки текущего интервала
+# времени на наличие RDP-трафика
   def rdp_check(self):
     if self.port == '3389':
       self.is_rdpArr.append(True)
@@ -302,12 +313,13 @@ class Session:
         self.prob = round((self.cntTr / len(self.is_rdpArr)) * 100)
 
 
+# Подсчет значений списка rdpArr для анализа трафика
   def fin_rdp_check(self):
     cnt = 0
     for el in self.is_rdpArr:
       if el:
         cnt += 1
-    self.is_rdp = (False, True)[cnt > len(self.is_rdpArr) - cnt]
+    self.is_rdp = cnt > len(self.is_rdpArr) - cnt
 
 
 # Получение ethernet-кадра
@@ -415,6 +427,7 @@ def start_to_listen(s_listen):
       break
 
 
+# Обработка значений списка Session_list
 def clear_end_sessions():
   global Session_list
   n = len(Session_list)
@@ -423,8 +436,6 @@ def clear_end_sessions():
     if Session_list[i].fl_fin or Session_list[i].fl_rst:
       if Session_list[i].totalTime < 10:
         ids.append(i)
-    # else:
-    #   ids.append(i)
   tmp = Session_list.copy()
   Session_list.clear()
   for i in range(n):
@@ -435,6 +446,7 @@ def clear_end_sessions():
     s.get_rdp_features(Packet_list[-1], True)
 
 
+# Нахождение активных сессий
 def find_session_location(pkt):
   global Session_list
   if pkt.protoType == 'UDP':
@@ -520,6 +532,7 @@ def find_session_location(pkt):
   return ([0], 0)
 
 
+# Вывод информации о сессиях
 def print_inf_about_sessions():
   cnt = 1
   print(f'\nБыло перехвачено {len(Session_list)} сессии(-й)')
@@ -542,6 +555,7 @@ def print_inf_about_sessions():
   print(f'{line}{line}\n')
 
 
+# Запись информации о пакетах в файл
 def write_to_file(f):
   if Packet_list == []:
     return False
@@ -577,21 +591,22 @@ def read_from_file(inf):
     else:
       a.append(inf[beg + 1: end])
     inf = inf[end + 1:]
-  # try:
-  if a[5] == 'TCP':
-    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                , a[6], a[7], a[8], a[9], a[10], a[11]
-                                , a[12], a[13], a[14], a[15], a[16], a[17] ))
-    _ = find_session_location(Packet_list[-1])
-  elif a[5] == 'UDP':
-    Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
-                                , a[6], a[7], a[8], a[9], a[10] ))
-    _ = find_session_location(Packet_list[-1])
-  # except:
-  #   print('Ошибка при считывании файла...')
-  #   exit(0)
+  try:
+    if a[5] == 'TCP':
+      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                  , a[6], a[7], a[8], a[9], a[10], a[11]
+                                  , a[12], a[13], a[14], a[15], a[16], a[17] ))
+      _ = find_session_location(Packet_list[-1])
+    elif a[5] == 'UDP':
+      Packet_list.append(PacketInf( a[0], a[1], a[2], a[3], a[4], a[5]
+                                  , a[6], a[7], a[8], a[9], a[10] ))
+      _ = find_session_location(Packet_list[-1])
+  except:
+    print('Ошибка при считывании файла...')
+    exit(0)
 
 
+# Вывод информации о перехваченных пакетах
 def print_packet_inf(obj, mes_prob):
   if findRDP:
     if 5 not in mes_prob[0] or mes_prob[1] <= 50:
@@ -613,6 +628,7 @@ def print_packet_inf(obj, mes_prob):
   for i in mes_prob[0]:
     print(Phrases_signs[i], end='; ')
   print(f'\nВероятность RDP-сессии {mes_prob[1]}%')
+
 
 # Получение общей информации о текущей
 # попытке перехвата трафика
@@ -643,6 +659,7 @@ def get_common_data():
   return list(IPList), numPacketsPerSec
 
 
+# Получение общих портов относительно текущего IP-адреса
 def get_common_ports(curIP):
   ports = set()
   for pkt in Packet_list:
@@ -652,8 +669,8 @@ def get_common_ports(curIP):
   return list(ports)
 
  
-# Вывод пар (число, IP-адрес) для
-# предоставления выбора IP-адреса
+# Вывод пар (число, IP-адрес/порт) для
+# предоставления выбора IP-адреса/порта
 # пользователю
 def print_list_of_pairs(IPList, fl=False):
   num = 0
@@ -707,7 +724,6 @@ def print_adjacent_packets(adjcPacketLIst):
       else:
         print('')
     cnt += 1
-
 
 
 # Получение данных об отношении входящего
@@ -978,6 +994,7 @@ def get_inf_about_IP(exploreIP, port):
   return adjcPacketList, list(adjcIPList)
 
 
+# Получение номера по IP-адресу
 def get_pos_by_IP(curIP):
   for i in range(len(Object_list)):
     if Object_list[i].ip == curIP:
@@ -1001,6 +1018,7 @@ def get_x_labels(total_time):
   return step
 
 
+# Получение второго IP-адреса
 def get_2nd_IP_for_plot(k):
   print('\nИзобразить на графике еще один объект. Выберите ' + \
             'IP-адрес для добавления (введите цифру)')
@@ -1195,7 +1213,6 @@ def choose_options(k, strt, fin, step, port):
       fig_1.set_title('Количество входящих пакетов, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
       plt.plot(x, Object_list[k].pkt_amnt_dst_data, 'b', label=curIP)
       if scndIP != 'None':
         plt.plot(x, Object_list[pos].pkt_amnt_dst_data, 'r', label=scndIP)
@@ -1207,7 +1224,6 @@ def choose_options(k, strt, fin, step, port):
       fig_2.set_title('Количество исходящих пакетов, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
       if scndIP != 'None':
         plt.plot(x, Object_list[pos].pkt_amnt_src_data, 'g', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
@@ -1238,7 +1254,6 @@ def choose_options(k, strt, fin, step, port):
       fig_1.set_title('Максимальный размер входящих пакетов, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_1.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      # fig_1.set_ylabel(r'$r_{syn} = \frac{V_{S_{in}}}{V_{tcp}}$', fontsize=15)
       plt.plot(x, Object_list[k].pkt_size_data_dst, 'b', label=curIP)
       if scndIP != 'None':
         plt.plot(x, Object_list[pos].pkt_size_data_dst, 'r', label=scndIP)
@@ -1250,7 +1265,6 @@ def choose_options(k, strt, fin, step, port):
       fig_2.set_title('Максимальный размер исходящих пакетов, полученных за ' + \
                       'единицу времени', fontsize=15)
       fig_2.set_xlabel('Общее время перехвата трафика', fontsize=15)
-      # fig_2.set_ylabel(r'$r_{psh} = \frac{V_{P_{in}}}{V_{tcp}}$', fontsize=15)
       if scndIP != 'None':
         plt.plot(x, Object_list[pos].pkt_size_data_src, 'g', label=scndIP)
       plt.xticks(x_labels, x_axisLabels, rotation=30, fontsize=8)
@@ -1260,6 +1274,7 @@ def choose_options(k, strt, fin, step, port):
       break
 
 
+# Выбор опции (меню)
 def choose_mode():
   global Packet_list, Object_list, Labels_list, Session_list, findRDP
   while True:
